@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escrivania Criminal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f5f5f0;color:#1a1a18;font-size:14px}
+.app{max-width:1500px;margin:0 auto;padding:1rem}
+.header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.08);margin-bottom:1.2rem;flex-wrap:wrap;gap:10px}
+.header h1{font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;color:#0C447C}
+.badge{background:#E6F1FB;color:#185FA5;font-size:12px;padding:2px 10px;border-radius:20px;font-weight:600}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.export-group{display:flex;align-items:center;gap:6px;padding:5px 10px;background:#f0efe8;border-radius:10px}
+.export-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.tabs{display:flex;gap:4px;background:#ece9e0;border-radius:10px;padding:4px;margin-bottom:1.2rem;width:fit-content}
+.tab{padding:8px 18px;border-radius:7px;border:none;background:transparent;cursor:pointer;font-size:13px;color:#666;display:flex;align-items:center;gap:6px;transition:all .15s}
+.tab.active{background:#fff;color:#1a1a18;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,0.1)}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid rgba(0,0,0,0.15);background:#fff;cursor:pointer;font-size:13px;color:#1a1a18;transition:all .15s;white-space:nowrap;text-decoration:none;font-family:Arial}
+.btn:hover{background:#f0efe8}
+.btn.primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn.primary:hover{background:#0C447C}
+.btn.excel{background:#1d6f42;color:#fff;border-color:#1d6f42}
+.btn.pdf-btn{background:#c0392b;color:#fff;border-color:#c0392b}
+.btn.gcal{background:#1a73e8;color:#fff;border-color:#1a73e8}
+.btn.danger{background:#fcebeb;color:#a32d2d;border-color:#e24b4a}
+.search{flex:1;min-width:220px;max-width:340px;position:relative}
+.search input{width:100%;padding:8px 10px 8px 34px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px;background:#fff;outline:none}
+.search i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#888;font-size:16px}
+.table-wrap{background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,0.08);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:9px 11px;text-align:left;font-weight:700;font-size:10px;color:#666;background:#f5f5f0;border-bottom:1px solid rgba(0,0,0,0.08);white-space:nowrap;text-transform:uppercase;letter-spacing:.04em}
+td{padding:8px 11px;border-bottom:1px solid rgba(0,0,0,0.04);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#EBF4FD}
+.pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.p-sim{background:#EAF3DE;color:#3B6D11}
+.p-nao{background:#f1efe8;color:#666}
+.p-pend{background:#FAEEDA;color:#854F0B}
+.p-ok{background:#E1F5EE;color:#0F6E56}
+.p-urg{background:#FCEBEB;color:#A32D2D}
+.p-azul{background:#E6F1FB;color:#185FA5}
+.p-roxo{background:#EEEDFE;color:#534AB7}
+.cnj{font-family:monospace;font-size:10px;background:#E6F1FB;color:#0C447C;padding:2px 6px;border-radius:4px;font-weight:700}
+.acts{display:flex;gap:5px}
+.ibtn{padding:5px 7px;border:1px solid rgba(0,0,0,0.12);border-radius:6px;background:transparent;cursor:pointer;color:#666;font-size:13px;display:inline-flex;align-items:center;transition:all .15s;text-decoration:none}
+.ibtn:hover{background:#f0efe8}
+.ibtn.del:hover{background:#FCEBEB;color:#a32d2d;border-color:#e24b4a}
+.ibtn.cal:hover{background:#E6F1FB;color:#185FA5}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal{background:#fff;border-radius:14px;padding:1.5rem;width:100%;max-width:700px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal h2{font-size:16px;font-weight:700;margin-bottom:1.2rem;display:flex;align-items:center;gap:8px;color:#0C447C}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+.fg label{font-size:11px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.fg input,.fg select,.fg textarea{padding:8px 10px;border:1px solid rgba(0,0,0,0.18);border-radius:8px;font-size:13px;outline:none;width:100%;font-family:Arial}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#378ADD;box-shadow:0 0 0 3px #E6F1FB}
+.fg textarea{resize:vertical;min-height:68px}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:1.2rem;padding-top:1rem;border-top:1px solid rgba(0,0,0,0.08)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.2rem}
+.sc{background:#fff;border-radius:10px;border:1px solid rgba(0,0,0,0.08);padding:.9rem 1.1rem}
+.sc .lbl{font-size:10.5px;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.sc .val{font-size:26px;font-weight:700}
+.empty{text-align:center;padding:3rem 1rem;color:#aaa}
+.empty i{font-size:44px;margin-bottom:.8rem;display:block;opacity:.3}
+.empty h3{font-size:14px;font-weight:700;color:#888;margin-bottom:.3rem}
+.notice{background:#E6F1FB;border:1px solid #B5D4F4;border-radius:10px;padding:11px 13px;font-size:12px;color:#0C447C;margin-bottom:1rem;display:flex;align-items:flex-start;gap:8px}
+.toast{position:fixed;bottom:24px;right:24px;background:#1d6f42;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:none}
+.toast.err{background:#c0392b}
+.loading{text-align:center;padding:2rem;color:#888;font-size:13px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <h1>⚖ Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span></h1>
+    <div class="header-actions">
+      <div class="export-group">
+        <span class="export-label">Exportar</span>
+        <button class="btn excel" onclick="exportExcel()"><i class="ti ti-file-spreadsheet"></i>Excel</button>
+        <button class="btn pdf-btn" onclick="exportPDF()"><i class="ti ti-file-type-pdf"></i>PDF</button>
+      </div>
+      <label class="btn" style="cursor:pointer"><i class="ti ti-upload"></i>Importar Excel
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcel(this)">
+      </label>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="sc"><div class="lbl">Inquéritos</div><div class="val" id="st-total" style="color:#185FA5">0</div></div>
+    <div class="sc"><div class="lbl">Relatados ao MP</div><div class="val" id="st-relat" style="color:#3B6D11">0</div></div>
+    <div class="sc"><div class="lbl">Com pendências</div><div class="val" id="st-pend" style="color:#854F0B">0</div></div>
+    <div class="sc"><div class="lbl">Com denúncia</div><div class="val" id="st-denu" style="color:#185FA5">0</div></div>
+    <div class="sc"><div class="lbl">Oitivas agendadas</div><div class="val" id="st-oag" style="color:#534AB7">0</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-inq" onclick="setTab('inq')"><i class="ti ti-files"></i>Inquéritos Policiais</button>
+    <button class="tab" id="tab-oit" onclick="setTab('oit')"><i class="ti ti-calendar-event"></i>Agenda de Oitivas</button>
+  </div>
+
+  <!-- INQUÉRITOS -->
+  <div id="pane-inq">
+    <div class="toolbar">
+      <button class="btn primary" onclick="abrirNovoInq()"><i class="ti ti-plus"></i>Novo procedimento</button>
+      <div class="search"><i class="ti ti-search"></i><input id="busca" placeholder="Buscar CNJ, autor, vítima, natureza…" oninput="carregarInqueritos()"></div>
+      <span id="count-inq" style="font-size:12px;color:#aaa;margin-left:auto"></span>
+    </div>
+    <div class="table-wrap">
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Ano</th><th>Nº CNJ</th><th>Inquérito</th><th>BO</th><th>Natureza Criminal</th>
+            <th>Autor</th><th>Vítima</th><th>Relatado</th><th>Cota MP</th><th>Prazo</th>
+            <th>Arquivamento</th><th>ANP</th><th>Denúncia</th><th>Obj. Apreendidos</th>
+            <th>Pendências</th><th>Atualizado</th><th>Ações</th>
+          </tr></thead>
+          <tbody id="tbody-inq"><tr><td colspan="17"><div class="loading">Carregando…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- OITIVAS -->
+  <div id="pane-oit" style="display:none">
+    <div class="toolbar">
+      <button class="btn primary" onclick="abrirNovaOitiva()"><i class="ti ti-calendar-plus"></i>Nova oitiva</button>
+      <select id="filtro-cnj" style="padding:8px 10px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:13px;background:#fff;outline:none" onchange="carregarOitivas()">
+        <option value="">Todos os inquéritos</option>
+      </select>
+      <span id="count-oit" style="font-size:12px;color:#aaa;margin-left:auto"></span>
+    </div>
+    <div class="notice"><i class="ti ti-info-circle" style="font-size:17px;flex-shrink:0"></i><div>Clique no ícone do Google em qualquer oitiva para criar o evento no <strong>Google Calendar</strong> com todos os dados já preenchidos.</div></div>
+    <div class="table-wrap">
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Nº CNJ</th><th>Inquérito</th><th>Pessoa</th><th>Qualidade</th>
+            <th>Data</th><th>Hora</th><th>Local</th><th>Status</th><th>Observações</th><th>Ações</th>
+          </tr></thead>
+          <tbody id="tbody-oit"><tr><td colspan="10"><div class="loading">Carregando…</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INQUÉRITO -->
+<div class="overlay" id="modal-inq" style="display:none" onclick="if(event.target===this)fecharModal('modal-inq')">
+  <div class="modal">
+    <h2 id="modal-inq-title"><i class="ti ti-file-plus"></i>Novo procedimento</h2>
+    <input type="hidden" id="inq-id">
+    <div class="grid2">
+      <div class="fg"><label>Ano</label><input id="inq-ano" placeholder="2024"></div>
+      <div class="fg"><label>Nº CNJ</label><input id="inq-cnj" placeholder="0001234-12.2024.8.26.0001"></div>
+      <div class="fg"><label>Nº Inquérito</label><input id="inq-inq" placeholder="IP 123/2024"></div>
+      <div class="fg"><label>BO</label><input id="inq-bo" placeholder="BO 456/2024"></div>
+      <div class="fg full"><label>Natureza Criminal</label><input id="inq-nat" placeholder="Ex: Furto qualificado, Lesão corporal…"></div>
+      <div class="fg"><label>Autor</label><input id="inq-autor"></div>
+      <div class="fg"><label>Vítima</label><input id="inq-vitima"></div>
+      <div class="fg"><label>Relatado</label><select id="inq-relat"><option>Não</option><option>Sim</option></select></div>
+      <div class="fg"><label>Cota MP (diligências)</label><select id="inq-cota"><option>Não</option><option>Sim</option></select></div>
+      <div class="fg"><label>Prazo</label><input id="inq-prazo" placeholder="Ex: 30 dias, Vencido…"></div>
+      <div class="fg"><label>Arquivamento</label><select id="inq-arq"><option>Não</option><option>Sim</option></select></div>
+      <div class="fg"><label>ANP</label><select id="inq-anp"><option>Não</option><option>Sim</option></select></div>
+      <div class="fg"><label>Denúncia</label><select id="inq-den"><option>Não</option><option>Sim</option></select></div>
+      <div class="fg"><label>Objetos Apreendidos</label><input id="inq-obj" placeholder="Descreva os objetos…"></div>
+      <div class="fg full"><label>Pendências</label><textarea id="inq-pend" placeholder="Descreva as pendências…"></textarea></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="fecharModal('modal-inq')">Cancelar</button>
+      <button class="btn primary" onclick="salvarInq()"><i class="ti ti-check"></i>Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL OITIVA -->
+<div class="overlay" id="modal-oit" style="display:none" onclick="if(event.target===this)fecharModal('modal-oit')">
+  <div class="modal">
+    <h2 id="modal-oit-title"><i class="ti ti-calendar-plus" style="color:#534AB7"></i>Agendar oitiva</h2>
+    <input type="hidden" id="oit-id">
+    <div class="grid2">
+      <div class="fg"><label>Nº CNJ</label>
+        <select id="oit-cnj" onchange="preencherInqOitiva()">
+          <option value="">Selecione o inquérito…</option>
+        </select>
+      </div>
+      <div class="fg"><label>Nº Inquérito</label><input id="oit-inq" placeholder="IP 123/2024"></div>
+      <div class="fg"><label>Nome da pessoa</label><input id="oit-pessoa" placeholder="Nome completo"></div>
+      <div class="fg"><label>Qualidade</label>
+        <select id="oit-qual"><option>Vítima</option><option>Investigado</option><option>Testemunha</option><option>Informante</option></select>
+      </div>
+      <div class="fg"><label>Data</label><input type="date" id="oit-data"></div>
+      <div class="fg"><label>Hora</label><input type="time" id="oit-hora" value="09:00"></div>
+      <div class="fg full"><label>Local</label><input id="oit-local" placeholder="Delegacia, sala, endereço…" value="Delegacia Central"></div>
+      <div class="fg"><label>Status</label>
+        <select id="oit-status"><option>Agendada</option><option>Realizada</option><option>Cancelada</option><option>Remarcada</option></select>
+      </div>
+      <div class="fg full"><label>Observações</label><textarea id="oit-obs" placeholder="Acompanhado de advogado, necessita intérprete…"></textarea></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="fecharModal('modal-oit')">Cancelar</button>
+      <button class="btn gcal" id="btn-gcal" style="display:none" onclick="abrirGCal()"><i class="ti ti-brand-google"></i>Abrir no Google Calendar</button>
+      <button class="btn primary" onclick="salvarOitiva()"><i class="ti ti-check"></i>Salvar oitiva</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Estado global ──────────────────────────────────────
+let tabAtual = 'inq';
+let inqueritos = [];
+let oitivas = [];
+
+// ── Utilitários ────────────────────────────────────────
+function toast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (err ? ' err' : '');
+  t.style.display = 'block';
+  setTimeout(() => t.style.display='none', 3000);
+}
+function fecharModal(id) { document.getElementById(id).style.display='none'; }
+function setTab(t) {
+  tabAtual = t;
+  document.getElementById('pane-inq').style.display = t==='inq'?'block':'none';
+  document.getElementById('pane-oit').style.display = t==='oit'?'block':'none';
+  document.getElementById('tab-inq').className = 'tab' + (t==='inq'?' active':'');
+  document.getElementById('tab-oit').className = 'tab' + (t==='oit'?' active':'');
+  if (t==='oit') carregarOitivas();
+}
+function pill(txt, cls) { return `<span class="pill ${cls}">${txt}</span>`; }
+function fmt(v) { return v||'—'; }
+function fmtData(d) { if(!d) return '—'; const dt=new Date(d+'T12:00:00'); return dt.toLocaleDateString('pt-BR'); }
+
+// ── Stats ──────────────────────────────────────────────
+async function carregarStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const s = await r.json();
+    document.getElementById('st-total').textContent = s.total;
+    document.getElementById('st-relat').textContent = s.relatados;
+    document.getElementById('st-pend').textContent = s.pendentes;
+    document.getElementById('st-denu').textContent = s.comDenuncia;
+    document.getElementById('st-oag').textContent = s.oitivasAgendadas;
+    document.getElementById('badge-total').textContent = s.total + ' procedimentos';
+  } catch(e) {}
+}
+
+// ════════════════════════════════════════════════════════
+// INQUÉRITOS
+// ════════════════════════════════════════════════════════
+async function carregarInqueritos() {
+  const q = document.getElementById('busca').value.trim();
+  const url = '/api/inqueritos' + (q ? `?search=${encodeURIComponent(q)}` : '');
+  const r = await fetch(url);
+  inqueritos = await r.json();
+  renderInqueritos();
+  popularSelectCNJ();
+  carregarStats();
+}
+
+function renderInqueritos() {
+  const tb = document.getElementById('tbody-inq');
+  document.getElementById('count-inq').textContent = `${inqueritos.length} registros`;
+  if (!inqueritos.length) {
+    tb.innerHTML = `<tr><td colspan="17"><div class="empty"><i class="ti ti-files-off"></i><h3>Nenhum procedimento encontrado</h3><p>Importe uma planilha ou adicione manualmente.</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = inqueritos.map(r => `<tr>
+    <td>${r.ano||'—'}</td>
+    <td><span class="cnj">${r.cnj||'—'}</span></td>
+    <td>${r.inquerito||'—'}</td>
+    <td>${r.bo||'—'}</td>
+    <td>${r.natureza||'—'}</td>
+    <td>${r.autor||'—'}</td>
+    <td>${r.vitima||'—'}</td>
+    <td>${pill(r.relatado, r.relatado==='Sim'?'p-sim':'p-nao')}</td>
+    <td>${pill(r.cota_mp, r.cota_mp==='Sim'?'p-urg':'p-nao')}</td>
+    <td>${pill(r.prazo||'—', r.prazo==='Vencido'?'p-urg':r.prazo?'p-pend':'p-nao')}</td>
+    <td>${pill(r.arquivamento, r.arquivamento==='Sim'?'p-ok':'p-nao')}</td>
+    <td>${pill(r.anp, r.anp==='Sim'?'p-azul':'p-nao')}</td>
+    <td>${pill(r.denuncia, r.denuncia==='Sim'?'p-ok':'p-nao')}</td>
+    <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.objetos_apreendidos||'—'}</td>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${r.pendencias?'#854F0B':'inherit'}">${r.pendencias||'—'}</td>
+    <td><span class="pill p-sim" style="font-size:10px">${r.atualizado||'—'}</span></td>
+    <td>
+      <div class="acts">
+        <button class="ibtn" title="Editar" onclick='editarInq(${JSON.stringify(r)})'><i class="ti ti-edit"></i></button>
+        <button class="ibtn cal" title="Agendar oitiva" onclick="irParaOitiva('${r.cnj}','${r.inquerito}')"><i class="ti ti-calendar-plus"></i></button>
+        <button class="ibtn del" title="Remover" onclick="removerInq(${r.id})"><i class="ti ti-trash"></i></button>
+      </div>
+    </td>
+  </tr>`).join('');
+}
+
+function abrirNovoInq() {
+  document.getElementById('modal-inq-title').innerHTML = '<i class="ti ti-file-plus"></i>Novo procedimento';
+  ['id','ano','cnj','inq','bo','nat','autor','vitima','prazo','obj','pend'].forEach(f => document.getElementById('inq-'+f).value='');
+  ['relat','cota','arq','anp','den'].forEach(f => document.getElementById('inq-'+f).value='Não');
+  document.getElementById('modal-inq').style.display='flex';
+}
+
+function editarInq(r) {
+  document.getElementById('modal-inq-title').innerHTML = '<i class="ti ti-edit"></i>Editar procedimento';
+  document.getElementById('inq-id').value = r.id;
+  document.getElementById('inq-ano').value = r.ano||'';
+  document.getElementById('inq-cnj').value = r.cnj||'';
+  document.getElementById('inq-inq').value = r.inquerito||'';
+  document.getElementById('inq-bo').value = r.bo||'';
+  document.getElementById('inq-nat').value = r.natureza||'';
+  document.getElementById('inq-autor').value = r.autor||'';
+  document.getElementById('inq-vitima').value = r.vitima||'';
+  document.getElementById('inq-relat').value = r.relatado||'Não';
+  document.getElementById('inq-cota').value = r.cota_mp||'Não';
+  document.getElementById('inq-prazo').value = r.prazo||'';
+  document.getElementById('inq-arq').value = r.arquivamento||'Não';
+  document.getElementById('inq-anp').value = r.anp||'Não';
+  document.getElementById('inq-den').value = r.denuncia||'Não';
+  document.getElementById('inq-obj').value = r.objetos_apreendidos||'';
+  document.getElementById('inq-pend').value = r.pendencias||'';
+  document.getElementById('modal-inq').style.display='flex';
+}
+
+async function salvarInq() {
+  const id = document.getElementById('inq-id').value;
+  const body = {
+    ano: document.getElementById('inq-ano').value,
+    cnj: document.getElementById('inq-cnj').value.trim(),
+    inquerito: document.getElementById('inq-inq').value,
+    bo: document.getElementById('inq-bo').value,
+    natureza: document.getElementById('inq-nat').value,
+    autor: document.getElementById('inq-autor').value,
+    vitima: document.getElementById('inq-vitima').value,
+    relatado: document.getElementById('inq-relat').value,
+    cotaMP: document.getElementById('inq-cota').value,
+    prazo: document.getElementById('inq-prazo').value,
+    arquivamento: document.getElementById('inq-arq').value,
+    anp: document.getElementById('inq-anp').value,
+    denuncia: document.getElementById('inq-den').value,
+    objetosApreendidos: document.getElementById('inq-obj').value,
+    pendencias: document.getElementById('inq-pend').value,
+  };
+  const url = id ? `/api/inqueritos/${id}` : '/api/inqueritos';
+  const method = id ? 'PUT' : 'POST';
+  const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (r.ok) {
+    fecharModal('modal-inq');
+    carregarInqueritos();
+    toast(id ? 'Procedimento atualizado!' : 'Procedimento criado!');
+  } else {
+    const e = await r.json();
+    toast('Erro: ' + e.error, true);
+  }
+}
+
+async function removerInq(id) {
+  if (!confirm('Remover este inquérito? Esta ação não pode ser desfeita.')) return;
+  await fetch(`/api/inqueritos/${id}`, { method: 'DELETE' });
+  carregarInqueritos();
+  toast('Inquérito removido.');
+}
+
+// ════════════════════════════════════════════════════════
+// OITIVAS
+// ════════════════════════════════════════════════════════
+function popularSelectCNJ() {
+  const sel = document.getElementById('filtro-cnj');
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Todos os inquéritos</option>' +
+    inqueritos.map(r => `<option value="${r.cnj}">${r.cnj} — ${r.inquerito||''}</option>`).join('');
+  sel.value = val;
+  // modal select
+  const ms = document.getElementById('oit-cnj');
+  const mv = ms.value;
+  ms.innerHTML = '<option value="">Selecione…</option>' +
+    inqueritos.map(r => `<option value="${r.cnj}" data-inq="${r.inquerito||''}">${r.cnj} — ${r.inquerito||''}</option>`).join('');
+  ms.value = mv;
+}
+
+async function carregarOitivas() {
+  const cnj = document.getElementById('filtro-cnj').value;
+  const url = '/api/oitivas' + (cnj ? `?cnj=${encodeURIComponent(cnj)}` : '');
+  const r = await fetch(url);
+  oitivas = await r.json();
+  renderOitivas();
+}
+
+function renderOitivas() {
+  const tb = document.getElementById('tbody-oit');
+  document.getElementById('count-oit').textContent = `${oitivas.length} oitiva(s)`;
+  if (!oitivas.length) {
+    tb.innerHTML = `<tr><td colspan="10"><div class="empty"><i class="ti ti-calendar-off"></i><h3>Nenhuma oitiva agendada</h3></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = oitivas.map(o => {
+    const qCls = o.qualidade==='Vítima'?'p-ok':o.qualidade==='Investigado'?'p-urg':'p-azul';
+    const sCls = o.status==='Realizada'?'p-sim':o.status==='Cancelada'?'p-urg':'p-pend';
+    return `<tr>
+      <td><span class="cnj">${o.cnj||'—'}</span></td>
+      <td>${o.inquerito||'—'}</td>
+      <td><strong>${o.pessoa||'—'}</strong></td>
+      <td>${pill(o.qualidade,qCls)}</td>
+      <td>${fmtData(o.data_oitiva)}</td>
+      <td>${o.hora||'—'}</td>
+      <td>${o.local_oitiva||'—'}</td>
+      <td>${pill(o.status,sCls)}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.observacoes||'—'}</td>
+      <td>
+        <div class="acts">
+          <button class="ibtn" onclick='editarOitiva(${JSON.stringify(o)})'><i class="ti ti-edit"></i></button>
+          <a href="${gcalURL(o)}" target="_blank" class="ibtn cal" title="Google Calendar"><i class="ti ti-brand-google"></i></a>
+          <button class="ibtn del" onclick="removerOitiva(${o.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function gcalURL(o) {
+  if (!o.data_oitiva && !o.data) return '#';
+  const d = (o.data_oitiva||o.data||'').split('T')[0].replace(/-/g,'');
+  const [hh,mm] = (o.hora||'09:00').split(':');
+  const s=`${d}T${hh}${mm}00`;
+  const eh=String(parseInt(hh)+1).padStart(2,'0');
+  const e=`${d}T${eh}${mm}00`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Oitiva: '+(o.pessoa||'')+' ('+(o.qualidade||'')+') - '+(o.inquerito||''))}&dates=${s}/${e}&location=${encodeURIComponent(o.local_oitiva||o.local||'')}&details=${encodeURIComponent('CNJ: '+(o.cnj||'')+'\nInquérito: '+(o.inquerito||'')+'\nObs: '+(o.observacoes||o.obs||''))}`;
+}
+
+function abrirNovaOitiva(cnj='', inq='') {
+  document.getElementById('modal-oit-title').innerHTML = '<i class="ti ti-calendar-plus" style="color:#534AB7"></i>Agendar oitiva';
+  document.getElementById('oit-id').value = '';
+  document.getElementById('oit-cnj').value = cnj;
+  document.getElementById('oit-inq').value = inq;
+  document.getElementById('oit-pessoa').value = '';
+  document.getElementById('oit-qual').value = 'Vítima';
+  document.getElementById('oit-data').value = '';
+  document.getElementById('oit-hora').value = '09:00';
+  document.getElementById('oit-local').value = 'Delegacia Central';
+  document.getElementById('oit-status').value = 'Agendada';
+  document.getElementById('oit-obs').value = '';
+  document.getElementById('btn-gcal').style.display = 'none';
+  document.getElementById('modal-oit').style.display = 'flex';
+}
+
+function editarOitiva(o) {
+  document.getElementById('modal-oit-title').innerHTML = '<i class="ti ti-edit" style="color:#534AB7"></i>Editar oitiva';
+  document.getElementById('oit-id').value = o.id;
+  document.getElementById('oit-cnj').value = o.cnj||'';
+  document.getElementById('oit-inq').value = o.inquerito||'';
+  document.getElementById('oit-pessoa').value = o.pessoa||'';
+  document.getElementById('oit-qual').value = o.qualidade||'Vítima';
+  document.getElementById('oit-data').value = (o.data_oitiva||'').split('T')[0];
+  document.getElementById('oit-hora').value = o.hora||'09:00';
+  document.getElementById('oit-local').value = o.local_oitiva||'';
+  document.getElementById('oit-status').value = o.status||'Agendada';
+  document.getElementById('oit-obs').value = o.observacoes||'';
+  document.getElementById('btn-gcal').style.display = o.data_oitiva ? 'flex' : 'none';
+  document.getElementById('modal-oit').style.display = 'flex';
+}
+
+function preencherInqOitiva() {
+  const sel = document.getElementById('oit-cnj');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('oit-inq').value = opt ? (opt.dataset.inq||'') : '';
+}
+
+function abrirGCal() {
+  const o = {
+    cnj: document.getElementById('oit-cnj').value,
+    inquerito: document.getElementById('oit-inq').value,
+    pessoa: document.getElementById('oit-pessoa').value,
+    qualidade: document.getElementById('oit-qual').value,
+    data_oitiva: document.getElementById('oit-data').value,
+    hora: document.getElementById('oit-hora').value,
+    local_oitiva: document.getElementById('oit-local').value,
+    observacoes: document.getElementById('oit-obs').value,
+  };
+  window.open(gcalURL(o), '_blank');
+}
+
+async function salvarOitiva() {
+  const id = document.getElementById('oit-id').value;
+  const body = {
+    cnj: document.getElementById('oit-cnj').value,
+    inquerito: document.getElementById('oit-inq').value,
+    pessoa: document.getElementById('oit-pessoa').value,
+    qualidade: document.getElementById('oit-qual').value,
+    data: document.getElementById('oit-data').value,
+    hora: document.getElementById('oit-hora').value,
+    local: document.getElementById('oit-local').value,
+    status: document.getElementById('oit-status').value,
+    obs: document.getElementById('oit-obs').value,
+  };
+  const url = id ? `/api/oitivas/${id}` : '/api/oitivas';
+  const method = id ? 'PUT' : 'POST';
+  const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (r.ok) {
+    fecharModal('modal-oit');
+    carregarOitivas();
+    carregarStats();
+    toast('Oitiva salva!');
+  } else {
+    toast('Erro ao salvar oitiva.', true);
+  }
+}
+
+async function removerOitiva(id) {
+  if (!confirm('Remover esta oitiva?')) return;
+  await fetch(`/api/oitivas/${id}`, { method:'DELETE' });
+  carregarOitivas();
+  carregarStats();
+  toast('Oitiva removida.');
+}
+
+function irParaOitiva(cnj, inq) {
+  setTab('oit');
+  setTimeout(() => abrirNovaOitiva(cnj, inq), 100);
+}
+
+// ════════════════════════════════════════════════════════
+// IMPORTAR EXCEL
+// ════════════════════════════════════════════════════════
+async function importarExcel(input) {
+  const file = input.files[0]; if (!file) return;
+  const fd = new FormData();
+  fd.append('arquivo', file);
+  toast('Importando…');
+  const r = await fetch('/api/importar', { method:'POST', body: fd });
+  const d = await r.json();
+  if (r.ok) {
+    toast(`✅ ${d.importados} novos + ${d.atualizados} atualizados = ${d.total} registros`);
+    carregarInqueritos();
+  } else {
+    toast('Erro na importação: ' + d.error, true);
+  }
+  input.value = '';
+}
+
+// ════════════════════════════════════════════════════════
+// EXPORTAR EXCEL
+// ════════════════════════════════════════════════════════
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  if (tabAtual === 'inq' || tabAtual === 'ambos') {
+    const rows = inqueritos.map(r => ({
+      'Ano':r.ano,'Nº CNJ':r.cnj,'Nº Inquérito':r.inquerito,'BO':r.bo,
+      'Natureza Criminal':r.natureza,'Autor':r.autor,'Vítima':r.vitima,
+      'Relatado':r.relatado,'COTA - MP':r.cota_mp,'Prazo':r.prazo,
+      'Arquivamento':r.arquivamento,'ANP':r.anp,'Denúncia':r.denuncia,
+      'Objetos Apreendidos':r.objetos_apreendidos,'Pendências':r.pendencias,'Atualizado':r.atualizado
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:5},{wch:32},{wch:15},{wch:15},{wch:22},{wch:20},{wch:20},{wch:9},{wch:9},{wch:14},{wch:12},{wch:6},{wch:9},{wch:24},{wch:30},{wch:22}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Inquéritos');
+  }
+  if (tabAtual === 'oit' || tabAtual === 'ambos') {
+    const rows = oitivas.map(o => ({
+      'Nº CNJ':o.cnj,'Nº Inquérito':o.inquerito,'Pessoa':o.pessoa,'Qualidade':o.qualidade,
+      'Data':fmtData(o.data_oitiva),'Hora':o.hora,'Local':o.local_oitiva,
+      'Status':o.status,'Observações':o.observacoes
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'Oitivas');
+  }
+  const d = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  XLSX.writeFile(wb, `escrivania_${d}.xlsx`);
+}
+
+// ════════════════════════════════════════════════════════
+// EXPORTAR PDF
+// ════════════════════════════════════════════════════════
+function exportPDF() {
+  const hoje = new Date().toLocaleString('pt-BR');
+  const iRows = inqueritos.map((r,i) => `<tr style="background:${i%2?'#f5f9ff':'#fff'}">
+    <td>${r.ano||''}</td><td style="font-family:monospace;font-size:9px">${r.cnj||''}</td>
+    <td>${r.inquerito||''}</td><td>${r.bo||''}</td><td>${r.natureza||''}</td>
+    <td>${r.autor||''}</td><td>${r.vitima||''}</td>
+    <td style="color:${r.relatado==='Sim'?'#3B6D11':'#888'};font-weight:700">${r.relatado}</td>
+    <td style="color:${r.cota_mp==='Sim'?'#A32D2D':'#888'};font-weight:700">${r.cota_mp}</td>
+    <td style="color:${r.prazo==='Vencido'?'#A32D2D':r.prazo?'#854F0B':'#888'};font-weight:700">${r.prazo||'—'}</td>
+    <td>${r.arquivamento}</td><td>${r.anp}</td><td>${r.denuncia}</td>
+    <td>${r.objetos_apreendidos||'—'}</td>
+    <td style="color:${r.pendencias?'#854F0B':'#aaa'}">${r.pendencias||'—'}</td>
+    <td style="font-size:9px">${r.atualizado||''}</td>
+  </tr>`).join('');
+
+  const oRows = oitivas.map((o,i) => `<tr style="background:${i%2?'#f5f9ff':'#fff'}">
+    <td style="font-family:monospace;font-size:9px">${o.cnj||''}</td>
+    <td>${o.inquerito||''}</td><td><b>${o.pessoa||''}</b></td>
+    <td style="color:${o.qualidade==='Vítima'?'#0F6E56':o.qualidade==='Investigado'?'#A32D2D':'#185FA5'};font-weight:700">${o.qualidade}</td>
+    <td>${fmtData(o.data_oitiva)}</td><td>${o.hora||''}</td><td>${o.local_oitiva||''}</td>
+    <td style="color:${o.status==='Realizada'?'#3B6D11':o.status==='Cancelada'?'#A32D2D':'#854F0B'};font-weight:700">${o.status}</td>
+    <td>${o.observacoes||'—'}</td>
+  </tr>`).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <title>Escrivania Criminal — Relatório</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10px;color:#1a1a18;padding:14px}
+  h1{font-size:15px;color:#185FA5;font-weight:700;margin-bottom:2px}.sub{color:#777;font-size:9px;margin-bottom:10px}
+  h2{font-size:11px;color:#0C447C;font-weight:700;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #185FA5}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px}
+  th{background:#185FA5;color:#fff;padding:5px 6px;text-align:left;font-weight:700;font-size:8.5px;text-transform:uppercase}
+  td{padding:4px 6px;border-bottom:0.5px solid #e8e8e8;vertical-align:top}
+  .footer{margin-top:14px;font-size:8px;color:#aaa;border-top:0.5px solid #ddd;padding-top:5px;text-align:center}
+  @media print{body{padding:0}@page{size:A4 landscape;margin:7mm}}</style>
+  </head><body>
+  <h1>⚖ Escrivania Criminal — Relatório de Procedimentos</h1>
+  <div class="sub">Gerado em ${hoje} | ${inqueritos.length} inquéritos | ${oitivas.length} oitivas</div>
+  ${tabAtual!=='oit'?`<h2>Inquéritos Policiais (${inqueritos.length} registros)</h2>
+  <table><thead><tr><th>Ano</th><th>Nº CNJ</th><th>Nº Inquérito</th><th>BO</th><th>Natureza Criminal</th><th>Autor</th><th>Vítima</th><th>Relatado</th><th>Cota MP</th><th>Prazo</th><th>Arquivamento</th><th>ANP</th><th>Denúncia</th><th>Obj. Apreendidos</th><th>Pendências</th><th>Atualizado</th></tr></thead><tbody>${iRows}</tbody></table>`:''}
+  ${tabAtual!=='inq'?`<h2>Agenda de Oitivas (${oitivas.length} registros)</h2>
+  <table><thead><tr><th>Nº CNJ</th><th>Inquérito</th><th>Pessoa</th><th>Qualidade</th><th>Data</th><th>Hora</th><th>Local</th><th>Status</th><th>Observações</th></tr></thead><tbody>${oRows}</tbody></table>`:''}
+  <div class="footer">Escrivania Criminal · Relatório gerado em ${hoje}</div>
+  <script>window.onload=function(){window.print()}<\/script></body></html>`;
+
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  window.open(URL.createObjectURL(blob), '_blank');
+}
+
+// ── Init ──────────────────────────────────────────────
+carregarInqueritos();
+</script>
+</body>
+</html>
