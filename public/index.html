@@ -89,6 +89,7 @@ tr:hover td{background:#EBF4FD}
       <label class="btn" style="cursor:pointer"><i class="ti ti-upload"></i>Importar Excel
         <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcel(this)">
       </label>
+      <button class="btn" style="background:#7b1e1e;color:#fff;border-color:#7b1e1e" onclick="abrirResetModal()"><i class="ti ti-trash"></i>Apagar Base</button>
     </div>
   </div>
 
@@ -208,6 +209,25 @@ tr:hover td{background:#EBF4FD}
       <button class="btn" onclick="fecharModal('modal-oit')">Cancelar</button>
       <button class="btn gcal" id="btn-gcal" style="display:none" onclick="abrirGCal()"><i class="ti ti-brand-google"></i>Abrir no Google Calendar</button>
       <button class="btn primary" onclick="salvarOitiva()"><i class="ti ti-check"></i>Salvar oitiva</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESET -->
+<div class="overlay" id="modal-reset" style="display:none" onclick="if(event.target===this)fecharModal('modal-reset')">
+  <div class="modal" style="max-width:420px">
+    <h2 style="color:#7b1e1e"><i class="ti ti-alert-triangle" style="color:#c0392b"></i>Apagar Base de Dados</h2>
+    <div style="background:#FCEBEB;border:1px solid #e24b4a;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:#7b1e1e;line-height:1.6">
+      <strong>⚠️ Atenção!</strong> Esta ação irá apagar <strong>todos os inquéritos e oitivas</strong> cadastrados. Esta operação é irreversível.<br><br>
+      Após apagar, será necessário importar novamente o Excel para recriar a base.
+    </div>
+    <div class="fg full" style="margin-bottom:8px">
+      <label style="font-size:11px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:.04em">Digite a senha para confirmar</label>
+      <input type="password" id="reset-senha" placeholder="••••••" style="padding:10px;border:1px solid rgba(0,0,0,.2);border-radius:8px;font-size:15px;width:100%;letter-spacing:4px;outline:none" onkeydown="if(event.key==='Enter')confirmarReset()">
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="fecharModal('modal-reset')">Cancelar</button>
+      <button class="btn" style="background:#c0392b;color:#fff;border-color:#c0392b" onclick="confirmarReset()"><i class="ti ti-trash"></i>Confirmar exclusão</button>
     </div>
   </div>
 </div>
@@ -624,6 +644,38 @@ function exportPDF() {
 
   const blob = new Blob([html], {type:'text/html;charset=utf-8'});
   window.open(URL.createObjectURL(blob), '_blank');
+}
+
+
+// ── Reset base de dados ───────────────────────────────
+function abrirResetModal() {
+  document.getElementById('reset-senha').value = '';
+  document.getElementById('modal-reset').style.display = 'flex';
+  setTimeout(() => document.getElementById('reset-senha').focus(), 100);
+}
+
+async function confirmarReset() {
+  const senha = document.getElementById('reset-senha').value;
+  if (!senha) { toast('Digite a senha.', true); return; }
+  const r = await fetch('/api/reset', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ senha })
+  });
+  const d = await r.json();
+  if (r.ok) {
+    fecharModal('modal-reset');
+    inqueritos = [];
+    oitivas = [];
+    renderInqueritos();
+    renderOitivas();
+    carregarStats();
+    toast('✅ Base de dados apagada! Importe o Excel para recriar.');
+  } else {
+    toast('❌ ' + d.error, true);
+    document.getElementById('reset-senha').value = '';
+    document.getElementById('reset-senha').focus();
+  }
 }
 
 // ── Init ──────────────────────────────────────────────
