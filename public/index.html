@@ -297,11 +297,20 @@ tr:hover td{background:#EBF4FD}
   <div class="modal" style="max-width:860px;max-height:92vh">
     <h2><i class="ti ti-calendar-event" style="color:#1a73e8"></i>Minha Agenda — Google Calendar</h2>
     
-    <!-- Navegação de semana -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <button class="btn" onclick="semanaAnterior()"><i class="ti ti-chevron-left"></i></button>
-      <div id="agenda-periodo" style="font-size:14px;font-weight:600;color:#185FA5"></div>
-      <button class="btn" onclick="proximaSemana()"><i class="ti ti-chevron-right"></i></button>
+    <!-- Navegação -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px">
+      <div style="display:flex;gap:4px">
+        <button class="btn" onclick="navegarCalendario(-4)" title="Mês anterior"><i class="ti ti-chevrons-left"></i></button>
+        <button class="btn" onclick="navegarCalendario(-1)" title="Semana anterior"><i class="ti ti-chevron-left"></i></button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="agenda-periodo" style="font-size:14px;font-weight:600;color:#185FA5;min-width:220px;text-align:center"></div>
+        <button class="btn" onclick="navegarCalendario(0)" style="font-size:11px;padding:5px 10px">Hoje</button>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button class="btn" onclick="navegarCalendario(1)" title="Próxima semana"><i class="ti ti-chevron-right"></i></button>
+        <button class="btn" onclick="navegarCalendario(4)" title="Próximo mês"><i class="ti ti-chevrons-right"></i></button>
+      </div>
     </div>
 
     <!-- Grade da semana -->
@@ -836,15 +845,22 @@ function atualizarPreviewAgenda() {
   }
 }
 
-async function semanaAnterior() {
-  agendaInicioSemana.setDate(agendaInicioSemana.getDate() - 7);
+async function navegarCalendario(semanas) {
+  if (!agendaInicioSemana) return;
+  // Cria nova data para não mutar o objeto original
+  const nova = new Date(agendaInicioSemana.getTime());
+  if (semanas === 0) {
+    // Hoje
+    agendaInicioSemana = inicioSemana(new Date());
+  } else {
+    nova.setDate(nova.getDate() + (semanas * 7));
+    agendaInicioSemana = nova;
+  }
   await carregarSemana();
 }
 
-async function proximaSemana() {
-  agendaInicioSemana.setDate(agendaInicioSemana.getDate() + 7);
-  await carregarSemana();
-}
+async function semanaAnterior() { await navegarCalendario(-1); }
+async function proximaSemana() { await navegarCalendario(1); }
 
 async function confirmarAgenda() {
   const data = document.getElementById('agenda-data-sel').value;
