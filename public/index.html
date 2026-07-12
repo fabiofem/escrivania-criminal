@@ -303,7 +303,11 @@ tr:hover td{background:#EBF4FD}
         <div id="painel-email" style="display:none;border-top:1px solid rgba(0,0,0,.08);padding-top:10px">
           <div class="fg" style="margin-bottom:8px">
             <label>Email do destinatário</label>
-            <input id="oit-email" type="email" placeholder="exemplo@email.com">
+            <input id="oit-email" type="email" placeholder="destinatario@email.com.br">
+          </div>
+          <div class="fg" style="margin-bottom:8px">
+            <label>Remetente</label>
+            <input value="fabio.moreira2@policiacivil.sp.gov.br" readonly style="background:#f5f5f0;color:#666;font-size:12px">
           </div>
           <div class="fg" style="margin-bottom:8px">
             <label>Assunto</label>
@@ -1010,10 +1014,10 @@ function enviarEmail() {
   const assunto = document.getElementById('oit-email-assunto').value.trim();
   const corpo = document.getElementById('oit-email-corpo').value.trim();
   if (!email) { toast('⚠️ Informe o email do destinatário.', false, true); return; }
-  // Abre Gmail diretamente no navegador
-  const gmailURL = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
-  window.open(gmailURL, '_blank');
-  toast('✅ Abrindo Gmail…');
+  // Abre Outlook Web com email institucional
+  const outlookURL = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(email)}&subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+  window.open(outlookURL, '_blank');
+  toast('✅ Abrindo Outlook…');
 }
 
 async function salvarNoCalendarDireto() {
