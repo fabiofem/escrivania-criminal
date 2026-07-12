@@ -14,8 +14,41 @@ const oauth2Client = new google.auth.OAuth2(
   `${process.env.APP_URL}/auth/callback`
 );
 
-// Armazena tokens em memória (para uso single-user)
+// Tokens em memória
 let googleTokens = null;
+
+// Salva tokens no banco para persistir entre reinicializações
+async function salvarTokens(tokens) {
+  try {
+    googleTokens = tokens;
+    await pool.query(`
+      INSERT INTO config (chave, valor) VALUES ('google_tokens', $1)
+      ON CONFLICT (chave) DO UPDATE SET valor=$1, atualizado_em=NOW()
+    `, [JSON.stringify(tokens)]);
+    console.log('✅ Tokens do Google salvos no banco');
+  } catch(e) {
+    console.error('Erro ao salvar tokens:', e.message);
+  }
+}
+
+// Carrega tokens do banco ao iniciar
+async function carregarTokens() {
+  try {
+    const r = await pool.query("SELECT valor FROM config WHERE chave='google_tokens'");
+    if (r.rows.length) {
+      googleTokens = JSON.parse(r.rows[0].valor);
+      oauth2Client.setCredentials(googleTokens);
+      // Renova token se necessário
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      googleTokens = credentials;
+      await pool.query("UPDATE config SET valor=$1, atualizado_em=NOW() WHERE chave='google_tokens'", [JSON.stringify(credentials)]);
+      console.log('✅ Google Calendar reconectado automaticamente!');
+    }
+  } catch(e) {
+    console.log('ℹ️ Google Calendar não conectado:', e.message);
+    googleTokens = null;
+  }
+}
 
 function getCalendarClient() {
   if (!googleTokens) return null;
@@ -118,6 +151,15 @@ async function initDB() {
     );
   `);
 
+  // Tabela de configurações do sistema (tokens, etc.)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS config (
+      chave TEXT PRIMARY KEY,
+      valor TEXT,
+      atualizado_em TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
   // Tabela de envolvidos por inquérito
   await pool.query(`
     CREATE TABLE IF NOT EXISTS envolvidos (
@@ -216,6 +258,7 @@ async function initDB() {
   await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS pessoa_nome TEXT`).catch(() => {});
   await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS tipo_envolvimento TEXT DEFAULT 'Vítima'`).catch(() => {});
   await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS telefone TEXT`).catch(() => {});
+  await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS calendar_event_id TEXT`).catch(() => {});
   // Renomeia qualidade -> tipo_envolvimento se existir
   await pool.query(`ALTER TABLE oitivas RENAME COLUMN qualidade TO tipo_envolvimento`).catch(() => {});
   await pool.query(`ALTER TABLE oitivas RENAME COLUMN pessoa TO pessoa_nome`).catch(() => {});
@@ -704,7 +747,7 @@ app.get('/auth/callback', async (req, res) => {
   try {
     const { code } = req.query;
     const { tokens } = await oauth2Client.getToken(code);
-    googleTokens = tokens;
+    await salvarTokens(tokens);
     console.log('✅ Google Calendar autorizado com sucesso!');
     res.send(`
       <html><body style="font-family:Arial;text-align:center;padding:3rem">
@@ -828,13 +871,26 @@ app.post('/api/google/evento', async (req, res) => {
   }
 });
 
+// Deletar evento do Google Calendar
+app.delete('/api/google/evento/:eventId', async (req, res) => {
+  try {
+    const calendar = getCalendarClient();
+    if (!calendar) return res.status(401).json({ error: 'Não autorizado.' });
+    await calendar.events.delete({ calendarId: 'primary', eventId: req.params.eventId });
+    res.json({ ok: true });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── SPA fallback ──────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // ── Start ─────────────────────────────────────────────────
-initDB().then(() => {
+initDB().then(async () => {
+  await carregarTokens(); // Reconecta Google Calendar automaticamente
   app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
 }).catch(err => {
   console.error('Erro ao inicializar banco:', err);
