@@ -145,10 +145,10 @@ tr:hover td{background:#EBF4FD}
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
-            <th>Nº CNJ</th><th>Inquérito</th><th>Pessoa</th><th>Qualidade</th><th>Telefone</th>
+            <th>Nº CNJ</th><th>Inquérito</th><th>Pessoa</th><th>Qualidade</th>
             <th>Data</th><th>Hora</th><th>Local</th><th>Status</th><th>Observações</th><th>Ações</th>
           </tr></thead>
-          <tbody id="tbody-oit"><tr><td colspan="11"><div class="loading">Carregando…</div></td></tr></tbody>
+          <tbody id="tbody-oit"><tr><td colspan="10"><div class="loading">Carregando…</div></td></tr></tbody>
         </table>
       </div>
     </div>
@@ -200,7 +200,6 @@ tr:hover td{background:#EBF4FD}
       <div class="fg"><label>Qualidade</label>
         <select id="oit-qual"><option>Vítima</option><option>Investigado</option><option>Testemunha</option><option>Informante</option></select>
       </div>
-      <div class="fg"><label>Telefone</label><input id="oit-tel" placeholder="(11) 99999-9999"></div>
       <div class="fg"><label>Data</label><input type="date" id="oit-data"></div>
       <div class="fg"><label>Hora</label><input type="time" id="oit-hora" value="09:00"></div>
       <div class="fg full"><label>Local</label><input id="oit-local" placeholder="Delegacia, sala, endereço…" value="Delegacia Central"></div>
@@ -211,8 +210,8 @@ tr:hover td{background:#EBF4FD}
     </div>
     <div class="mfoot">
       <button class="btn" onclick="fecharModal('modal-oit')">Cancelar</button>
-      <button class="btn primary" onclick="salvarOitiva(false)"><i class="ti ti-check"></i>Salvar</button>
-      <button class="btn gcal" onclick="salvarOitiva(true)"><i class="ti ti-brand-google"></i>Salvar + Calendar</button>
+      <button class="btn gcal" id="btn-gcal" style="display:none" onclick="abrirGCal()"><i class="ti ti-brand-google"></i>Abrir no Google Calendar</button>
+      <button class="btn primary" onclick="salvarOitiva()"><i class="ti ti-check"></i>Salvar oitiva</button>
     </div>
   </div>
 </div>
@@ -455,7 +454,7 @@ function renderOitivas() {
   const tb = document.getElementById('tbody-oit');
   document.getElementById('count-oit').textContent = `${oitivas.length} oitiva(s)`;
   if (!oitivas.length) {
-    tb.innerHTML = `<tr><td colspan="11"><div class="empty"><i class="ti ti-calendar-off"></i><h3>Nenhuma oitiva agendada</h3></div></td></tr>`;
+    tb.innerHTML = `<tr><td colspan="10"><div class="empty"><i class="ti ti-calendar-off"></i><h3>Nenhuma oitiva agendada</h3></div></td></tr>`;
     return;
   }
   tb.innerHTML = oitivas.map(o => {
@@ -466,7 +465,6 @@ function renderOitivas() {
       <td>${o.inquerito||'—'}</td>
       <td><strong>${o.pessoa||'—'}</strong></td>
       <td>${pill(o.qualidade,qCls)}</td>
-      <td>${o.telefone||'—'}</td>
       <td>${fmtData(o.data_oitiva)}</td>
       <td>${o.hora||'—'}</td>
       <td>${o.local_oitiva||'—'}</td>
@@ -490,28 +488,23 @@ function gcalURL(o) {
   const s=`${d}T${hh}${mm}00`;
   const eh=String(parseInt(hh)+1).padStart(2,'0');
   const e=`${d}T${eh}${mm}00`;
-  const tel = o.telefone ? 'Telefone: '+o.telefone+'\n' : '';
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Oitiva: '+(o.pessoa||'')+' ('+(o.qualidade||'')+') - '+(o.inquerito||''))}&dates=${s}/${e}&location=${encodeURIComponent(o.local_oitiva||o.local||'')}&details=${encodeURIComponent('CNJ: '+(o.cnj||'')+'\nInquérito: '+(o.inquerito||'')+'\nObs: '+(o.observacoes||o.obs||''))}`;
 }
 
 function abrirNovaOitiva(cnj='', inq='') {
   document.getElementById('modal-oit-title').innerHTML = '<i class="ti ti-calendar-plus" style="color:#534AB7"></i>Agendar oitiva';
   document.getElementById('oit-id').value = '';
+  document.getElementById('oit-cnj').value = cnj;
+  document.getElementById('oit-inq').value = inq;
   document.getElementById('oit-pessoa').value = '';
   document.getElementById('oit-qual').value = 'Vítima';
-  document.getElementById('oit-tel').value = '';
   document.getElementById('oit-data').value = '';
   document.getElementById('oit-hora').value = '09:00';
   document.getElementById('oit-local').value = 'Delegacia Central';
   document.getElementById('oit-status').value = 'Agendada';
   document.getElementById('oit-obs').value = '';
+  document.getElementById('btn-gcal').style.display = 'none';
   document.getElementById('modal-oit').style.display = 'flex';
-  // Pre-seleciona CNJ
-  setTimeout(() => {
-    const sel = document.getElementById('oit-cnj');
-    sel.value = cnj;
-    document.getElementById('oit-inq').value = inq;
-  }, 80);
 }
 
 function editarOitiva(o) {
@@ -525,8 +518,8 @@ function editarOitiva(o) {
   document.getElementById('oit-hora').value = o.hora||'09:00';
   document.getElementById('oit-local').value = o.local_oitiva||'';
   document.getElementById('oit-status').value = o.status||'Agendada';
-  document.getElementById('oit-tel').value = o.telefone||'';
   document.getElementById('oit-obs').value = o.observacoes||'';
+  document.getElementById('btn-gcal').style.display = o.data_oitiva ? 'flex' : 'none';
   document.getElementById('modal-oit').style.display = 'flex';
 }
 
@@ -536,22 +529,33 @@ function preencherInqOitiva() {
   document.getElementById('oit-inq').value = opt ? (opt.dataset.inq||'') : '';
 }
 
-async function salvarOitiva(abrirCal=false) {
+function abrirGCal() {
+  const o = {
+    cnj: document.getElementById('oit-cnj').value,
+    inquerito: document.getElementById('oit-inq').value,
+    pessoa: document.getElementById('oit-pessoa').value,
+    qualidade: document.getElementById('oit-qual').value,
+    data_oitiva: document.getElementById('oit-data').value,
+    hora: document.getElementById('oit-hora').value,
+    local_oitiva: document.getElementById('oit-local').value,
+    observacoes: document.getElementById('oit-obs').value,
+  };
+  window.open(gcalURL(o), '_blank');
+}
+
+async function salvarOitiva() {
   const id = document.getElementById('oit-id').value;
   const body = {
     cnj: document.getElementById('oit-cnj').value,
     inquerito: document.getElementById('oit-inq').value,
     pessoa: document.getElementById('oit-pessoa').value,
     qualidade: document.getElementById('oit-qual').value,
-    telefone: document.getElementById('oit-tel').value,
     data: document.getElementById('oit-data').value,
     hora: document.getElementById('oit-hora').value,
     local: document.getElementById('oit-local').value,
     status: document.getElementById('oit-status').value,
     obs: document.getElementById('oit-obs').value,
   };
-  if (!body.cnj) { toast('⚠️ Selecione o CNJ do inquérito.', false, true); return; }
-  if (!body.pessoa) { toast('⚠️ Informe o nome da pessoa.', false, true); return; }
   const url = id ? `/api/oitivas/${id}` : '/api/oitivas';
   const method = id ? 'PUT' : 'POST';
   try {
@@ -561,13 +565,7 @@ async function salvarOitiva(abrirCal=false) {
       fecharModal('modal-oit');
       carregarOitivas();
       carregarStats();
-      toast('✅ Oitiva salva!' + (abrirCal ? ' Abrindo Calendar…' : ''));
-      if (abrirCal && body.data) {
-        const obj = { cnj:body.cnj, inquerito:body.inquerito, pessoa:body.pessoa,
-          qualidade:body.qualidade, telefone:body.telefone, data_oitiva:body.data,
-          hora:body.hora, local_oitiva:body.local, observacoes:body.obs };
-        setTimeout(() => window.open(gcalURL(obj), '_blank'), 400);
-      }
+      toast('✅ Oitiva salva!');
     } else {
       toast('❌ Erro ao salvar oitiva: ' + (d.error || r.status), true);
     }
