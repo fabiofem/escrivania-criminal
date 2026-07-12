@@ -92,6 +92,9 @@ tr:hover td{background:#EBF4FD}
       <label class="btn" style="cursor:pointer"><i class="ti ti-upload"></i>Importar Excel
         <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcel(this)">
       </label>
+      <button id="btn-google-connect" class="btn" style="background:#fff;color:#444;border:1px solid #ddd" onclick="conectarGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:16px;height:16px"> <span id="google-status-txt">Conectar Calendar</span>
+      </button>
       <button class="btn" style="background:#7b1e1e;color:#fff;border-color:#7b1e1e" onclick="abrirResetModal()"><i class="ti ti-trash"></i>Apagar Base</button>
     </div>
   </div>
@@ -449,6 +452,7 @@ async function salvarInq() {
     if (r.ok) {
       fecharModal('modal-inq');
       carregarInqueritos();
+verificarStatusGoogle();
       toast(id ? '✅ Procedimento atualizado!' : '✅ Procedimento criado!');
     } else {
       toast('❌ Erro ao salvar: ' + (d.error || r.status), true);
@@ -621,12 +625,36 @@ async function salvarOitiva(abrirCal=false) {
       fecharModal('modal-oit');
       carregarOitivas();
       carregarStats();
-      toast('✅ Oitiva salva!' + (abrirCal ? ' Abrindo Calendar…' : ''));
+
       if (abrirCal && body.data) {
+        // Tenta criar evento diretamente via API (se conectado)
+        if (googleConectado) {
+          try {
+            const cr = await fetch('/api/google/evento', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify(body)
+            });
+            const cd = await cr.json();
+            if (cr.ok) {
+              toast('✅ Oitiva salva e evento criado no Google Calendar!');
+              return;
+            } else if (cr.status === 401) {
+              googleConectado = false;
+              atualizarBotaoGoogle();
+              toast('⚠️ Oitiva salva! Calendar desconectado — reconecte e tente novamente.', false, true);
+              return;
+            }
+          } catch(e) {}
+        }
+        // Fallback: abre link do calendar no navegador
         const obj = { cnj:body.cnj, inquerito:body.inquerito, pessoa:body.pessoa,
           qualidade:body.qualidade, telefone:body.telefone, data_oitiva:body.data,
           hora:body.hora, local_oitiva:body.local, observacoes:body.obs };
+        toast('✅ Oitiva salva! Abrindo Google Calendar…');
         setTimeout(() => window.open(gcalURL(obj), '_blank'), 400);
+      } else {
+        toast('✅ Oitiva salva!');
       }
     } else {
       toast('❌ Erro ao salvar oitiva: ' + (d.error || r.status), true);
@@ -798,6 +826,56 @@ async function confirmarReset() {
     document.getElementById('reset-senha').value = '';
     document.getElementById('reset-senha').focus();
   }
+}
+
+// ── Google Calendar ──────────────────────────────────
+let googleConectado = false;
+
+function atualizarBotaoGoogle() {
+  const btn = document.getElementById('btn-google-connect');
+  const txt = document.getElementById('google-status-txt');
+  if (!btn) return;
+  if (googleConectado) {
+    btn.style.background = '#e8f5e9';
+    btn.style.borderColor = '#4caf50';
+    btn.style.color = '#2e7d32';
+    txt.textContent = '✅ Calendar conectado';
+    btn.onclick = desconectarGoogle;
+  } else {
+    btn.style.background = '#fff';
+    btn.style.borderColor = '#ddd';
+    btn.style.color = '#444';
+    txt.textContent = 'Conectar Calendar';
+    btn.onclick = conectarGoogle;
+  }
+}
+
+function conectarGoogle() {
+  window.open('/auth/google', '_blank', 'width=500,height=600');
+  // Verifica status após alguns segundos
+  setTimeout(verificarStatusGoogle, 3000);
+  setTimeout(verificarStatusGoogle, 6000);
+  setTimeout(verificarStatusGoogle, 10000);
+}
+
+async function desconectarGoogle() {
+  if (!confirm('Desconectar o Google Calendar?')) return;
+  await fetch('/api/google/desconectar', { method: 'POST' });
+  googleConectado = false;
+  atualizarBotaoGoogle();
+  toast('Google Calendar desconectado.');
+}
+
+async function verificarStatusGoogle() {
+  try {
+    const r = await fetch('/api/google/status');
+    const d = await r.json();
+    if (d.conectado !== googleConectado) {
+      googleConectado = d.conectado;
+      atualizarBotaoGoogle();
+      if (d.conectado) toast('✅ Google Calendar conectado com sucesso!');
+    }
+  } catch(e) {}
 }
 
 // ── Init ──────────────────────────────────────────────
