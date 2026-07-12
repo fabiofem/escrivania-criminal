@@ -261,6 +261,7 @@ tr:hover td{background:#EBF4FD}
       <button class="btn" onclick="fecharModal('modal-oit')">Cancelar</button>
       <button class="btn primary" onclick="salvarOitiva(false)"><i class="ti ti-check"></i>Salvar</button>
       <button class="btn gcal" onclick="salvarOitiva(true)"><i class="ti ti-brand-google"></i>Salvar + Calendar</button>
+      <button class="btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="salvarOitiva(false, true)"><i class="ti ti-brand-whatsapp"></i>Salvar + WhatsApp</button>
     </div>
   </div>
 </div>
@@ -587,6 +588,32 @@ function renderOitivas() {
   }).join('');
 }
 
+// ── WhatsApp ──────────────────────────────────────────
+function whatsappURL(telefone, mensagem) {
+  const tel = String(telefone).replace(/\D/g,'');
+  const telBR = tel.startsWith('55') ? tel : '55' + tel;
+  return `https://wa.me/${telBR}?text=${encodeURIComponent(mensagem)}`;
+}
+
+function gerarMensagemOitiva({ pessoa, qualidade, inquerito, cnj, data, hora, local }) {
+  return `Olá, *${pessoa}*! 👋
+
+Você está sendo convocado(a) para prestar declarações na *Delegacia de Polícia*.
+
+📋 *Dados da oitiva:*
+• Inquérito: *${inquerito}*
+• Qualidade: *${qualidade}*
+• Data: *${data}*
+• Hora: *${hora}*
+• Local: *${local}*
+
+Por favor, compareça no horário indicado com documento de identificação com foto (RG ou CNH).
+
+Em caso de impossibilidade de comparecimento, entre em contato com antecedência.
+
+_Escrivania Criminal — 4ª Delegacia de Polícia_`;
+}
+
 function gcalURL(o) {
   if (!o.data_oitiva && !o.data) return '#';
   const d = (o.data_oitiva||o.data||'').split('T')[0].replace(/-/g,'');
@@ -661,7 +688,7 @@ function preencherInqOitiva() {
   document.getElementById('oit-inq').value = opt ? (opt.dataset.inq||'') : '';
 }
 
-async function salvarOitiva(abrirCal=false) {
+async function salvarOitiva(abrirCal=false, abrirWhatsApp=false) {
   const id = document.getElementById('oit-id').value;
   const body = {
     cnj: document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value,
@@ -688,7 +715,6 @@ async function salvarOitiva(abrirCal=false) {
       carregarStats();
 
       if (abrirCal && body.data) {
-        // Tenta criar evento diretamente via API (se conectado)
         if (googleConectado) {
           try {
             const cr = await fetch('/api/google/evento', {
@@ -708,12 +734,29 @@ async function salvarOitiva(abrirCal=false) {
             }
           } catch(e) {}
         }
-        // Fallback: abre link do calendar no navegador
         const obj = { cnj:body.cnj, inquerito:body.inquerito, pessoa:body.pessoa,
           qualidade:body.qualidade, telefone:body.telefone, data_oitiva:body.data,
           hora:body.hora, local_oitiva:body.local, observacoes:body.obs };
         toast('✅ Oitiva salva! Abrindo Google Calendar…');
         setTimeout(() => window.open(gcalURL(obj), '_blank'), 400);
+      } else if (abrirWhatsApp) {
+        const tel = body.telefone ? body.telefone.replace(/\D/g,'') : '';
+        if (!tel) {
+          toast('⚠️ Oitiva salva! Mas a pessoa não tem telefone cadastrado.', false, true);
+          return;
+        }
+        const dataFmt = body.data ? new Date(body.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+        const msg = gerarMensagemOitiva({
+          pessoa: body.pessoa,
+          qualidade: body.qualidade || body.tipo_envolvimento,
+          inquerito: body.inquerito,
+          cnj: body.cnj,
+          data: dataFmt,
+          hora: body.hora,
+          local: body.local,
+        });
+        toast('✅ Oitiva salva! Abrindo WhatsApp…');
+        setTimeout(() => window.open(whatsappURL(tel, msg), '_blank'), 400);
       } else {
         toast('✅ Oitiva salva!');
       }
@@ -1128,7 +1171,7 @@ function renderEnvolvidos(lista) {
           <strong style="margin-left:8px;font-size:14px">${e.nome}</strong>
         </div>
         <div style="display:flex;gap:6px">
-          ${e.telefone ? `<a href="https://wa.me/55${e.telefone.replace(/\D/g,'')}" target="_blank" class="ibtn" style="background:#25D366;color:#fff;border-color:#25D366" title="WhatsApp"><i class="ti ti-brand-whatsapp"></i></a>` : ''}
+          ${e.telefone ? `<a href="${whatsappURL(e.telefone, 'Olá, *'+e.nome+'*! 👋\n\nVocê está sendo convocado(a) para prestar declarações na *Delegacia de Polícia*. Por favor, entre em contato para confirmar sua disponibilidade.\n\n_Escrivania Criminal — 4ª Delegacia de Polícia_')}" target="_blank" class="ibtn" style="background:#25D366;color:#fff;border-color:#25D366" title="Enviar WhatsApp"><i class="ti ti-brand-whatsapp"></i></a>` : ''}
           <button class="ibtn" onclick='editarEnvolvido(${JSON.stringify(e).replace(/'/g,"&#39;")})' title="Editar"><i class="ti ti-edit"></i></button>
           <button class="ibtn del" onclick="removerEnvolvido(${e.id})" title="Remover"><i class="ti ti-trash"></i></button>
         </div>
