@@ -215,11 +215,10 @@ async function initDB() {
   await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS pessoa_id INTEGER REFERENCES pessoas(id) ON DELETE SET NULL`).catch(() => {});
   await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS pessoa_nome TEXT`).catch(() => {});
   await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS tipo_envolvimento TEXT DEFAULT 'Vítima'`).catch(() => {});
+  await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS telefone TEXT`).catch(() => {});
   // Renomeia qualidade -> tipo_envolvimento se existir
   await pool.query(`ALTER TABLE oitivas RENAME COLUMN qualidade TO tipo_envolvimento`).catch(() => {});
   await pool.query(`ALTER TABLE oitivas RENAME COLUMN pessoa TO pessoa_nome`).catch(() => {});
-  // Remove telefone da oitiva (agora fica em pessoa_telefones)
-  await pool.query(`ALTER TABLE oitivas DROP COLUMN IF EXISTS telefone`).catch(() => {});
 
   console.log('✅ Banco de dados inicializado');
 }
@@ -541,11 +540,11 @@ app.post('/api/oitivas', async (req, res) => {
   try {
     const d = req.body;
     const result = await pool.query(`
-      INSERT INTO oitivas (cnj, inquerito, pessoa_id, pessoa_nome, tipo_envolvimento, data_oitiva, hora, local_oitiva, status, observacoes)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      INSERT INTO oitivas (cnj, inquerito, pessoa_id, pessoa_nome, tipo_envolvimento, data_oitiva, hora, local_oitiva, status, telefone, observacoes)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [str(d.cnj), str(d.inquerito), d.pessoa_id||null, str(d.pessoa_nome||d.pessoa),
        str(d.tipo_envolvimento||d.qualidade||'Vítima'),
-       d.data||null, str(d.hora), str(d.local), str(d.status), str(d.obs)]
+       d.data||null, str(d.hora), str(d.local), str(d.status), str(d.telefone||''), str(d.obs)]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -558,11 +557,11 @@ app.put('/api/oitivas/:id', async (req, res) => {
     const d = req.body;
     const result = await pool.query(`
       UPDATE oitivas SET cnj=$1, inquerito=$2, pessoa_id=$3, pessoa_nome=$4,
-        tipo_envolvimento=$5, data_oitiva=$6, hora=$7, local_oitiva=$8, status=$9, observacoes=$10
-      WHERE id=$11 RETURNING *`,
+        tipo_envolvimento=$5, data_oitiva=$6, hora=$7, local_oitiva=$8, status=$9, telefone=$10, observacoes=$11
+      WHERE id=$12 RETURNING *`,
       [str(d.cnj), str(d.inquerito), d.pessoa_id||null, str(d.pessoa_nome||d.pessoa),
        str(d.tipo_envolvimento||d.qualidade||'Vítima'),
-       d.data||null, str(d.hora), str(d.local), str(d.status), str(d.obs), req.params.id]
+       d.data||null, str(d.hora), str(d.local), str(d.status), str(d.telefone||''), str(d.obs), req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
