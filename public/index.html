@@ -764,6 +764,9 @@ async function abrirModalAgenda() {
   document.getElementById('agenda-hora-sel').value = horaAtual;
   document.getElementById('agenda-status').style.display = 'none';
   document.getElementById('agenda-conflito').style.display = 'none';
+  // Reseta botão de confirmar
+  const btnConf = document.getElementById('btn-agenda-confirmar');
+  if(btnConf){btnConf.disabled=false;btnConf.innerHTML='<i class="ti ti-check"></i>Confirmar e criar evento';}
   document.getElementById('modal-agenda').style.display = 'flex';
   await carregarSemana();
 }
@@ -942,6 +945,9 @@ async function confirmarAgenda() {
       document.getElementById('oit-data').value = data;
       document.getElementById('oit-hora').value = hora;
       if (d.eventId) pendingCalendarEventId = d.eventId;
+      // Reativa o botão antes de fechar
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-check"></i>Confirmar e criar evento';
       fecharModal('modal-agenda');
       toast('✅ Evento criado no Calendar! Data e hora preenchidas. Clique em Salvar para confirmar.');
     } else if (r.status === 401) {
