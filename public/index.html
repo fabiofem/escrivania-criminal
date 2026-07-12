@@ -70,8 +70,9 @@ tr:hover td{background:#EBF4FD}
 .empty i{font-size:44px;margin-bottom:.8rem;display:block;opacity:.3}
 .empty h3{font-size:14px;font-weight:700;color:#888;margin-bottom:.3rem}
 .notice{background:#E6F1FB;border:1px solid #B5D4F4;border-radius:10px;padding:11px 13px;font-size:12px;color:#0C447C;margin-bottom:1rem;display:flex;align-items:flex-start;gap:8px}
-.toast{position:fixed;bottom:24px;right:24px;background:#1d6f42;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:none}
+.toast{position:fixed;bottom:24px;right:24px;background:#1d6f42;color:#fff;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 6px 30px rgba(0,0,0,0.3);display:none;max-width:420px;line-height:1.5;cursor:pointer}
 .toast.err{background:#c0392b}
+.toast.warn{background:#854F0B}
 .loading{text-align:center;padding:2rem;color:#888;font-size:13px}
 </style>
 </head>
@@ -241,13 +242,16 @@ let inqueritos = [];
 let oitivas = [];
 
 // ── Utilitários ────────────────────────────────────────
-function toast(msg, err=false) {
+function toast(msg, err=false, warn=false) {
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = 'toast' + (err ? ' err' : '');
+  t.className = 'toast' + (err ? ' err' : warn ? ' warn' : '');
   t.style.display = 'block';
-  setTimeout(() => t.style.display='none', 3000);
+  t.onclick = () => t.style.display = 'none';
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.display='none', err ? 7000 : 3500);
 }
+let toastTimer = null;
 function fecharModal(id) { document.getElementById(id).style.display='none'; }
 function setTab(t) {
   tabAtual = t;
@@ -281,7 +285,9 @@ async function carregarStats() {
 async function carregarInqueritos() {
   const q = document.getElementById('busca').value.trim();
   const url = '/api/inqueritos' + (q ? `?search=${encodeURIComponent(q)}` : '');
+  try {
   const r = await fetch(url);
+  if(!r.ok) throw new Error(await r.text());
   inqueritos = await r.json();
   renderInqueritos();
   popularSelectCNJ();
@@ -371,22 +377,26 @@ async function salvarInq() {
   };
   const url = id ? `/api/inqueritos/${id}` : '/api/inqueritos';
   const method = id ? 'PUT' : 'POST';
-  const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (r.ok) {
-    fecharModal('modal-inq');
-    carregarInqueritos();
-    toast(id ? 'Procedimento atualizado!' : 'Procedimento criado!');
-  } else {
-    const e = await r.json();
-    toast('Erro: ' + e.error, true);
-  }
+  try {
+    const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (r.ok) {
+      fecharModal('modal-inq');
+      carregarInqueritos();
+      toast(id ? '✅ Procedimento atualizado!' : '✅ Procedimento criado!');
+    } else {
+      toast('❌ Erro ao salvar: ' + (d.error || r.status), true);
+    }
+  } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
 }
 
 async function removerInq(id) {
   if (!confirm('Remover este inquérito? Esta ação não pode ser desfeita.')) return;
-  await fetch(`/api/inqueritos/${id}`, { method: 'DELETE' });
-  carregarInqueritos();
-  toast('Inquérito removido.');
+  try {
+    const r = await fetch(`/api/inqueritos/${id}`, { method: 'DELETE' });
+    if (r.ok) { carregarInqueritos(); toast('✅ Inquérito removido.'); }
+    else toast('❌ Erro ao remover inquérito.', true);
+  } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
 }
 
 // ════════════════════════════════════════════════════════
@@ -522,23 +532,27 @@ async function salvarOitiva() {
   };
   const url = id ? `/api/oitivas/${id}` : '/api/oitivas';
   const method = id ? 'PUT' : 'POST';
-  const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (r.ok) {
-    fecharModal('modal-oit');
-    carregarOitivas();
-    carregarStats();
-    toast('Oitiva salva!');
-  } else {
-    toast('Erro ao salvar oitiva.', true);
-  }
+  try {
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (r.ok) {
+      fecharModal('modal-oit');
+      carregarOitivas();
+      carregarStats();
+      toast('✅ Oitiva salva!');
+    } else {
+      toast('❌ Erro ao salvar oitiva: ' + (d.error || r.status), true);
+    }
+  } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
 }
 
 async function removerOitiva(id) {
   if (!confirm('Remover esta oitiva?')) return;
-  await fetch(`/api/oitivas/${id}`, { method:'DELETE' });
-  carregarOitivas();
-  carregarStats();
-  toast('Oitiva removida.');
+  try {
+    const r = await fetch(`/api/oitivas/${id}`, { method:'DELETE' });
+    if (r.ok) { carregarOitivas(); carregarStats(); toast('✅ Oitiva removida.'); }
+    else toast('❌ Erro ao remover oitiva.', true);
+  } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
 }
 
 function irParaOitiva(cnj, inq) {
@@ -553,14 +567,19 @@ async function importarExcel(input) {
   const file = input.files[0]; if (!file) return;
   const fd = new FormData();
   fd.append('arquivo', file);
-  toast('Importando…');
-  const r = await fetch('/api/importar', { method:'POST', body: fd });
-  const d = await r.json();
-  if (r.ok) {
-    toast(`✅ ${d.importados} novos + ${d.atualizados} atualizados = ${d.total} registros`);
-    carregarInqueritos();
-  } else {
-    toast('Erro na importação: ' + d.error, true);
+  toast('⏳ Importando planilha…');
+  try {
+    const r = await fetch('/api/importar', { method:'POST', body: fd });
+    const d = await r.json();
+    if (r.ok) {
+      carregarInqueritos();
+      const msg = `✅ ${d.importados} novos + ${d.atualizados} atualizados = ${d.total} registros` + (d.erros > 0 ? ` (${d.erros} erros)` : '');
+      toast(msg);
+    } else {
+      toast('❌ Erro na importação: ' + (d.error || 'Erro desconhecido'), true);
+    }
+  } catch(e) {
+    toast('❌ Erro de conexão ao importar: ' + e.message, true);
   }
   input.value = '';
 }
@@ -655,24 +674,30 @@ function abrirResetModal() {
 }
 
 async function confirmarReset() {
-  const senha = document.getElementById('reset-senha').value;
-  if (!senha) { toast('Digite a senha.', true); return; }
-  const r = await fetch('/api/reset', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ senha })
-  });
-  const d = await r.json();
-  if (r.ok) {
-    fecharModal('modal-reset');
-    inqueritos = [];
-    oitivas = [];
-    renderInqueritos();
-    renderOitivas();
-    carregarStats();
-    toast('✅ Base de dados apagada! Importe o Excel para recriar.');
-  } else {
-    toast('❌ ' + d.error, true);
+  const senha = document.getElementById('reset-senha').value.trim();
+  if (!senha) { toast('⚠️ Digite a senha para confirmar.', true); return; }
+  try {
+    const r = await fetch('/api/reset', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ senha })
+    });
+    const d = await r.json();
+    if (r.ok && d.ok) {
+      fecharModal('modal-reset');
+      inqueritos = [];
+      oitivas = [];
+      renderInqueritos();
+      renderOitivas();
+      carregarStats();
+      toast('✅ Base de dados apagada! Importe o Excel para recriar.');
+    } else {
+      toast('❌ ' + (d.error || 'Erro desconhecido'), true);
+      document.getElementById('reset-senha').value = '';
+      document.getElementById('reset-senha').focus();
+    }
+  } catch(e) {
+    toast('❌ Erro de conexão: ' + e.message, true);
     document.getElementById('reset-senha').value = '';
     document.getElementById('reset-senha').focus();
   }
