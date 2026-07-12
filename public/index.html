@@ -110,7 +110,7 @@ tr:hover td{background:#EBF4FD}
 
   <div class="tabs">
     <button class="tab active" id="tab-inq" onclick="setTab('inq')"><i class="ti ti-files"></i>Inquéritos Policiais</button>
-    <button class="tab" id="tab-oit" onclick="setTab('oit')"><i class="ti ti-calendar-event"></i>Agenda de Oitivas</button>
+    <button class="tab" id="tab-oit" onclick="setTab('oit')"><i class="ti ti-calendar-event"></i>Intimações</button>
   </div>
 
   <!-- INQUÉRITOS -->
@@ -138,7 +138,7 @@ tr:hover td{background:#EBF4FD}
   <!-- OITIVAS -->
   <div id="pane-oit" style="display:none">
     <div class="toolbar">
-      <button class="btn primary" onclick="abrirNovaOitiva()"><i class="ti ti-calendar-plus"></i>Nova oitiva</button>
+      <button class="btn primary" onclick="abrirNovaOitiva()"><i class="ti ti-calendar-plus"></i>Nova Intimação</button>
       <select id="filtro-cnj" style="padding:8px 10px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:13px;background:#fff;outline:none" onchange="carregarOitivas()">
         <option value="">Todos os inquéritos</option>
       </select>
@@ -149,7 +149,7 @@ tr:hover td{background:#EBF4FD}
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
-            <th>Nº CNJ</th><th>Inquérito</th><th>Pessoa</th><th>Qualidade</th><th>Telefone</th>
+            <th>Nº CNJ</th><th>Inquérito</th><th>Intimado</th><th>Qualidade</th><th>Telefone</th>
             <th>Data</th><th>Hora</th><th>Local</th><th>Status</th><th>Observações</th><th>Ações</th>
           </tr></thead>
           <tbody id="tbody-oit"><tr><td colspan="11"><div class="loading">Carregando…</div></td></tr></tbody>
@@ -191,7 +191,7 @@ tr:hover td{background:#EBF4FD}
 <!-- MODAL OITIVA -->
 <div class="overlay" id="modal-oit" style="display:none" onclick="if(event.target===this)fecharModal('modal-oit')">
   <div class="modal">
-    <h2 id="modal-oit-title"><i class="ti ti-calendar-plus" style="color:#534AB7"></i>Agendar oitiva</h2>
+    <h2 id="modal-oit-title"><i class="ti ti-calendar-plus" style="color:#534AB7"></i>Nova Intimação</h2>
     <input type="hidden" id="oit-id">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
 
@@ -588,6 +588,40 @@ function renderOitivas() {
   }).join('');
 }
 
+// ── Agenda e WhatsApp Intimação ───────────────────────
+function abrirAgenda() {
+  // Abre o Google Calendar na visão de semana para escolher data/hora
+  const url = 'https://calendar.google.com/calendar/r/week';
+  window.open(url, '_blank', 'width=1100,height=700');
+  toast('📅 Escolha o melhor dia e horário na sua agenda, depois preencha aqui!', false, true);
+}
+
+function enviarWhatsAppIntimacao() {
+  const tel = document.getElementById('oit-tel').value.trim();
+  const pessoa = document.getElementById('oit-pessoa').value.trim();
+  const cnj = document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value;
+  const inq = document.getElementById('oit-inq').value;
+  const bo = document.getElementById('oit-bo').value;
+  const data = document.getElementById('oit-data').value;
+  const hora = document.getElementById('oit-hora').value;
+  const local = document.getElementById('oit-local').value;
+
+  if (!tel) { toast('⚠️ Preencha o telefone para enviar a intimação!', false, true); return; }
+  if (!pessoa) { toast('⚠️ Preencha o nome da pessoa!', false, true); return; }
+
+  const dataFmt = data ? new Date(data + 'T12:00:00').toLocaleDateString('pt-BR') : '___/___/______';
+  const inqData = inqueritos.find(r => r.cnj === cnj) || {};
+
+  const msg = gerarMensagemOitiva({
+    pessoa, qualidade: document.getElementById('oit-qual').value,
+    inquerito: inq, cnj, data: dataFmt, hora, local,
+    bo: bo || inqData.bo || ''
+  });
+
+  window.open(whatsappURL(tel, msg), '_blank');
+  toast('✅ Abrindo WhatsApp com a intimação!');
+}
+
 // ── WhatsApp ──────────────────────────────────────────
 function whatsappURL(telefone, mensagem) {
   const tel = String(telefone).replace(/\D/g,'');
@@ -632,9 +666,12 @@ function abrirNovaOitiva(cnj='', inq='') {
   document.getElementById('oit-pessoa').value = '';
   document.getElementById('oit-qual').value = 'Vítima';
   document.getElementById('oit-tel').value = '';
+  document.getElementById('oit-bo') && (document.getElementById('oit-bo').value = '');
+  document.getElementById('oit-salvo').value = '0';
+  document.getElementById('alerta-whatsapp').style.display = 'none';
   document.getElementById('oit-data').value = '';
   document.getElementById('oit-hora').value = '09:00';
-  document.getElementById('oit-local').value = 'Delegacia Central';
+  document.getElementById('oit-local').value = '4° DP de Taubaté — Avenida JK 260, ao lado da Delegacia de Plantão';
   document.getElementById('oit-status').value = 'Agendada';
   document.getElementById('oit-obs').value = '';
 
@@ -685,8 +722,10 @@ function editarOitiva(o) {
 
 function preencherInqOitiva() {
   const sel = document.getElementById('oit-cnj');
-  const opt = sel.options[sel.selectedIndex];
-  document.getElementById('oit-inq').value = opt ? (opt.dataset.inq||'') : '';
+  const cnj = sel.value;
+  const inq = inqueritos.find(r => r.cnj === cnj) || {};
+  document.getElementById('oit-inq').value = inq.inquerito || '';
+  document.getElementById('oit-bo').value = inq.bo || '';
 }
 
 async function salvarOitiva(abrirCal=false, abrirWhatsApp=false) {
@@ -762,7 +801,13 @@ async function salvarOitiva(abrirCal=false, abrirWhatsApp=false) {
         toast('✅ Oitiva salva! Abrindo WhatsApp…');
         setTimeout(() => window.open(whatsappURL(tel, msg), '_blank'), 400);
       } else {
-        toast('✅ Oitiva salva!');
+        // Mostra alerta de WhatsApp após salvar
+        document.getElementById('oit-salvo').value = '1';
+        document.getElementById('btn-salvar-oit').innerHTML = '<i class="ti ti-check"></i>Salvo!';
+        document.getElementById('btn-salvar-oit').disabled = true;
+        const alerta = document.getElementById('alerta-whatsapp');
+        alerta.style.display = 'flex';
+        toast('✅ Intimação salva! Envie a notificação por WhatsApp.');
       }
     } else {
       toast('❌ Erro ao salvar oitiva: ' + (d.error || r.status), true);
