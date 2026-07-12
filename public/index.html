@@ -940,6 +940,8 @@ async function confirmarAgenda() {
       // Preenche os campos no modal de intimação
       document.getElementById('oit-data').value = data;
       document.getElementById('oit-hora').value = hora;
+      // Salva o eventId para poder apagar depois
+      if (d.eventId) document.getElementById('oit-calendar-event-id') && (document.getElementById('oit-calendar-event-id').value = d.eventId);
       fecharModal('modal-agenda');
       toast('✅ Evento criado no Calendar! Data e hora preenchidas automaticamente.');
     } else if (r.status === 401) {
@@ -1044,8 +1046,17 @@ async function salvarNoCalendarDireto() {
       });
       const d = await r.json();
       if(r.ok && d.ok){
+        // Salva eventId na intimação atual se já foi salva
+        const oitId = document.getElementById('oit-id').value;
+        if(d.eventId && oitId) {
+          fetch(`/api/oitivas/${oitId}/calendar-event`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({eventId: d.eventId})
+          }).catch(()=>{});
+        }
         toast('✅ Evento criado no Google Calendar!');
         if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-brand-google"></i> Criar no Calendar';}
+        carregarOitivas();
         return;
       }
     } catch(e){}
@@ -1292,24 +1303,23 @@ async function salvarOitiva() {
 }
 
 async function removerOitiva(id) {
-  if (!confirm('Remover esta intimação? O evento no Google Calendar NÃO será removido automaticamente.')) return;
+  if (!confirm('Remover esta intimação?')) return;
   try {
-    // Busca o eventId antes de deletar
     const oitiva = oitivas.find(o => o.id === id);
+    // Apaga do Calendar automaticamente se tiver eventId
+    if (oitiva && oitiva.calendar_event_id && googleConectado) {
+      try {
+        await fetch(`/api/google/evento/${oitiva.calendar_event_id}`, { method:'DELETE' });
+        console.log('Evento do Calendar removido:', oitiva.calendar_event_id);
+      } catch(e) {
+        console.warn('Não foi possível remover evento do Calendar:', e.message);
+      }
+    }
     const r = await fetch(`/api/oitivas/${id}`, { method:'DELETE' });
     if (r.ok) {
-      // Tenta remover do Calendar se tiver eventId
-      if (oitiva && oitiva.calendar_event_id && googleConectado) {
-        try {
-          await fetch(`/api/google/evento/${oitiva.calendar_event_id}`, { method:'DELETE' });
-          toast('✅ Intimação e evento do Calendar removidos.');
-        } catch(e) {
-          toast('✅ Intimação removida (evento do Calendar mantido).');
-        }
-      } else {
-        toast('✅ Intimação removida.');
-      }
-      carregarOitivas(); carregarStats();
+      carregarOitivas();
+      carregarStats();
+      toast('✅ Intimação removida' + (oitiva?.calendar_event_id ? ' e evento do Calendar apagado.' : '.'));
     } else toast('❌ Erro ao remover.', true);
   } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
 }
