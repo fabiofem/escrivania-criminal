@@ -108,9 +108,24 @@ async function initDB() {
     );
   `);
 
-  // Tabela de pessoas (cadastro completo)
+  // Tabela de envolvidos por inquérito
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS pessoas (
+    CREATE TABLE IF NOT EXISTS envolvidos (
+      id SERIAL PRIMARY KEY,
+      inquerito_id INTEGER REFERENCES inqueritos(id) ON DELETE CASCADE,
+      nome TEXT NOT NULL,
+      tipo_envolvimento TEXT DEFAULT 'Vítima',
+      rg TEXT,
+      cpf TEXT,
+      data_nascimento DATE,
+      telefone TEXT,
+      endereco TEXT,
+      observacoes TEXT,
+      criado_em TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
       rg TEXT,
@@ -287,6 +302,51 @@ app.delete('/api/inqueritos/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ════════════════════════════════════════════════════════
+// ROTAS — ENVOLVIDOS
+// ════════════════════════════════════════════════════════
+
+app.get('/api/envolvidos/:inqId', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM envolvidos WHERE inquerito_id=$1 ORDER BY tipo_envolvimento, nome', [req.params.inqId]);
+    res.json(r.rows);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/envolvidos', async (req, res) => {
+  try {
+    const d = req.body;
+    const r = await pool.query(`
+      INSERT INTO envolvidos (inquerito_id, nome, tipo_envolvimento, rg, cpf, data_nascimento, telefone, endereco, observacoes)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [d.inquerito_id, str(d.nome), str(d.tipo_envolvimento)||'Vítima', str(d.rg), str(d.cpf),
+       d.data_nascimento||null, str(d.telefone), str(d.endereco), str(d.observacoes)]
+    );
+    res.json(r.rows[0]);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/envolvidos/:id', async (req, res) => {
+  try {
+    const d = req.body;
+    const r = await pool.query(`
+      UPDATE envolvidos SET nome=$1, tipo_envolvimento=$2, rg=$3, cpf=$4,
+        data_nascimento=$5, telefone=$6, endereco=$7, observacoes=$8
+      WHERE id=$9 RETURNING *`,
+      [str(d.nome), str(d.tipo_envolvimento), str(d.rg), str(d.cpf),
+       d.data_nascimento||null, str(d.telefone), str(d.endereco), str(d.observacoes), req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/envolvidos/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM envolvidos WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 // ════════════════════════════════════════════════════════
