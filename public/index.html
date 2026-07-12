@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.8.4</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.9.0</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -280,19 +280,49 @@ tr:hover td{background:#EBF4FD}
       </div>
     </div>
 
-    <!-- Alerta WhatsApp após salvar -->
-    <div id="alerta-whatsapp" style="display:none;background:#E8F5E9;border:1px solid #4CAF50;border-radius:10px;padding:12px 14px;margin-top:12px;align-items:center;gap:12px">
-      <i class="ti ti-check" style="color:#2e7d32;font-size:22px;flex-shrink:0"></i>
-      <div style="flex:1;font-size:13px"><strong style="color:#2e7d32">Intimação salva!</strong> Clique para enviar a notificação por WhatsApp.</div>
-      <button class="btn" style="background:#25D366;color:#fff;border-color:#25D366;white-space:nowrap" onclick="enviarWhatsAppIntimacao()">
-        <i class="ti ti-brand-whatsapp"></i> Enviar Intimação
-      </button>
+    <!-- Painel de notificação após salvar -->
+    <div id="alerta-whatsapp" style="display:none;margin-top:12px">
+      <div style="background:#E8F5E9;border:1px solid #4CAF50;border-radius:10px 10px 0 0;padding:10px 14px;display:flex;align-items:center;gap:10px">
+        <i class="ti ti-check" style="color:#2e7d32;font-size:20px;flex-shrink:0"></i>
+        <strong style="color:#2e7d32;font-size:13px">Intimação salva! Escolha como notificar:</strong>
+      </div>
+      <div style="background:#f9f9f7;border:1px solid #4CAF50;border-top:none;border-radius:0 0 10px 10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+        <!-- Botões de notificação -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="enviarWhatsAppIntimacao()">
+            <i class="ti ti-brand-whatsapp"></i> Enviar por WhatsApp
+          </button>
+          <button class="btn" style="background:#1a73e8;color:#fff;border-color:#1a73e8" onclick="toggleEmailPanel()">
+            <i class="ti ti-mail"></i> Enviar por Email
+          </button>
+          <button class="btn gcal" onclick="salvarNoCalendarDireto()" id="btn-cal-apos-salvar">
+            <i class="ti ti-brand-google"></i> Criar no Calendar
+          </button>
+        </div>
+        <!-- Painel de email (oculto por padrão) -->
+        <div id="painel-email" style="display:none;border-top:1px solid rgba(0,0,0,.08);padding-top:10px">
+          <div class="fg" style="margin-bottom:8px">
+            <label>Email do destinatário</label>
+            <input id="oit-email" type="email" placeholder="exemplo@email.com">
+          </div>
+          <div class="fg" style="margin-bottom:8px">
+            <label>Assunto</label>
+            <input id="oit-email-assunto" value="INTIMAÇÃO — 4° DP de Taubaté">
+          </div>
+          <div class="fg" style="margin-bottom:8px">
+            <label>Mensagem</label>
+            <textarea id="oit-email-corpo" style="min-height:140px;font-family:monospace;font-size:12px"></textarea>
+          </div>
+          <button class="btn" style="background:#1a73e8;color:#fff;border-color:#1a73e8" onclick="enviarEmail()">
+            <i class="ti ti-send"></i> Enviar Email
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="mfoot">
       <button class="btn" onclick="fecharModal('modal-oit')">Fechar</button>
-      <button class="btn gcal" onclick="salvarOitiva(true)"><i class="ti ti-brand-google"></i>Salvar + Calendar</button>
-      <button class="btn primary" id="btn-salvar-oit" onclick="salvarOitiva(false)"><i class="ti ti-check"></i>Salvar Intimação</button>
+      <button class="btn primary" id="btn-salvar-oit" onclick="salvarOitiva()"><i class="ti ti-check"></i>Salvar</button>
     </div>
   </div>
 </div>
@@ -426,7 +456,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '2.8.4';
+const APP_VERSION = '2.9.0';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -949,6 +979,79 @@ function enviarWhatsAppIntimacao() {
   toast('✅ Abrindo WhatsApp com a intimação!');
 }
 
+// ── Email ─────────────────────────────────────────────
+function toggleEmailPanel() {
+  const p = document.getElementById('painel-email');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  if (p.style.display === 'block') preencherEmailCorpo();
+}
+
+function preencherEmailCorpo() {
+  const pessoa = document.getElementById('oit-pessoa').value.trim();
+  const cnj = document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value || document.getElementById('oit-cnj-busca').value.trim();
+  const inq = document.getElementById('oit-inq').value;
+  const bo = document.getElementById('oit-bo') ? document.getElementById('oit-bo').value : '';
+  const data = document.getElementById('oit-data').value;
+  const hora = document.getElementById('oit-hora').value;
+  const local = document.getElementById('oit-local').value;
+  const qual = document.getElementById('oit-qual').value;
+  const dataFmt = data ? new Date(data+'T12:00:00').toLocaleDateString('pt-BR') : '___/___/______';
+  const inqData = inqueritos.find(r => r.cnj === cnj) || {};
+
+  const msg = gerarMensagemOitiva({ pessoa, qualidade: qual, inquerito: inq, cnj, data: dataFmt, hora, local, bo: bo||inqData.bo||'' });
+  // Remove markdown bold para email
+  const msgEmail = msg.replace(/\*/g, '');
+  document.getElementById('oit-email-corpo').value = msgEmail;
+  document.getElementById('oit-email-assunto').value = `INTIMAÇÃO — ${inq||cnj} — 4° DP de Taubaté`;
+}
+
+function enviarEmail() {
+  const email = document.getElementById('oit-email').value.trim();
+  const assunto = document.getElementById('oit-email-assunto').value.trim();
+  const corpo = document.getElementById('oit-email-corpo').value.trim();
+  if (!email) { toast('⚠️ Informe o email do destinatário.', false, true); return; }
+  const mailto = `mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+  window.open(mailto, '_blank');
+  toast('✅ Abrindo cliente de email…');
+}
+
+async function salvarNoCalendarDireto() {
+  const cnj = document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value || document.getElementById('oit-cnj-busca').value.trim();
+  const inq = document.getElementById('oit-inq').value;
+  const pessoa = document.getElementById('oit-pessoa').value || 'A definir';
+  const qual = document.getElementById('oit-qual').value;
+  const local = document.getElementById('oit-local').value;
+  const obs = document.getElementById('oit-obs').value;
+  const bo = document.getElementById('oit-bo') ? document.getElementById('oit-bo').value : '';
+  const data = document.getElementById('oit-data').value;
+  const hora = document.getElementById('oit-hora').value;
+
+  if (!data) { toast('⚠️ Preencha a data antes de criar o evento no Calendar.', false, true); return; }
+
+  const btn = document.getElementById('btn-cal-apos-salvar');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader"></i> Criando…';}
+
+  if (googleConectado) {
+    try {
+      const r = await fetch('/api/google/evento', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({cnj, inquerito:inq, pessoa, qualidade:qual, data, hora, local, obs, bo})
+      });
+      const d = await r.json();
+      if(r.ok && d.ok){
+        toast('✅ Evento criado no Google Calendar!');
+        if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-brand-google"></i> Criar no Calendar';}
+        return;
+      }
+    } catch(e){}
+  }
+  // fallback: abre link
+  const obj = {cnj, inquerito:inq, pessoa_nome:pessoa, tipo_envolvimento:qual, data_oitiva:data, hora, local_oitiva:local, observacoes:obs};
+  window.open(gcalURL(obj), '_blank');
+  toast('✅ Abrindo Google Calendar…');
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-brand-google"></i> Criar no Calendar';}
+}
+
 // ── WhatsApp ──────────────────────────────────────────
 function whatsappURL(telefone, mensagem) {
   const tel = String(telefone).replace(/\D/g,'');
@@ -1141,7 +1244,7 @@ function preencherInqOitiva() {
   document.getElementById('oit-bo').value = inq.bo || '';
 }
 
-async function salvarOitiva(abrirCal=false, abrirWhatsApp=false) {
+async function salvarOitiva() {
   const id = document.getElementById('oit-id').value;
   const body = {
     cnj: document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value || document.getElementById('oit-cnj-busca').value.trim(),
