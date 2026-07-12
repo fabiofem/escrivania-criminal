@@ -142,6 +142,9 @@ async function initDB() {
       ALTER COLUMN atualizado TYPE TEXT;
   `).catch(() => {}); // ignora erro se já forem TEXT
 
+  // Migração: adiciona coluna telefone se não existir
+  await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS telefone TEXT`).catch(() => {});
+
   console.log('✅ Banco de dados inicializado');
 }
 
