@@ -111,7 +111,6 @@ tr:hover td{background:#EBF4FD}
   <div class="tabs">
     <button class="tab active" id="tab-inq" onclick="setTab('inq')"><i class="ti ti-files"></i>Inquéritos Policiais</button>
     <button class="tab" id="tab-oit" onclick="setTab('oit')"><i class="ti ti-calendar-event"></i>Agenda de Oitivas</button>
-    <button class="tab" id="tab-pes" onclick="setTab('pes')"><i class="ti ti-users"></i>Pessoas</button>
   </div>
 
   <!-- INQUÉRITOS -->
@@ -156,65 +155,6 @@ tr:hover td{background:#EBF4FD}
           <tbody id="tbody-oit"><tr><td colspan="11"><div class="loading">Carregando…</div></td></tr></tbody>
         </table>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- PESSOAS -->
-<div id="pane-pes" style="display:none">
-  <div class="toolbar">
-    <button class="btn primary" onclick="abrirNovaPessoa()"><i class="ti ti-user-plus"></i>Nova pessoa</button>
-    <div class="search"><i class="ti ti-search"></i><input id="busca-pes" placeholder="Buscar por nome, CPF, RG…" oninput="carregarPessoas()"></div>
-    <span id="count-pes" style="font-size:12px;color:#aaa;margin-left:auto"></span>
-  </div>
-  <div class="table-wrap">
-    <div style="overflow-x:auto">
-      <table>
-        <thead><tr>
-          <th>Nome</th><th>RG</th><th>CPF</th><th>Nascimento</th>
-          <th>Telefones</th><th>Endereço</th><th>Ações</th>
-        </tr></thead>
-        <tbody id="tbody-pes"><tr><td colspan="7"><div class="loading">Carregando…</div></td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL PESSOA -->
-<div class="overlay" id="modal-pes" style="display:none" onclick="if(event.target===this)fecharModal('modal-pes')">
-  <div class="modal" style="max-width:860px">
-    <h2 id="modal-pes-title"><i class="ti ti-user-plus" style="color:#534AB7"></i>Nova pessoa</h2>
-    <input type="hidden" id="pes-id">
-
-    <!-- Dados pessoais -->
-    <div style="font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Dados Pessoais</div>
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-      <div class="fg"><label>Nome completo *</label><input id="pes-nome" placeholder="Nome completo"></div>
-      <div class="fg"><label>RG</label><input id="pes-rg" placeholder="00.000.000-0"></div>
-      <div class="fg"><label>CPF</label><input id="pes-cpf" placeholder="000.000.000-00"></div>
-      <div class="fg"><label>Data de Nascimento</label><input type="date" id="pes-nasc"></div>
-    </div>
-
-    <!-- Telefones -->
-    <div style="font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
-      <span>Telefones</span>
-      <button class="btn" style="padding:4px 10px;font-size:12px" onclick="addTelefone()"><i class="ti ti-plus"></i>Adicionar</button>
-    </div>
-    <div id="lista-telefones" style="margin-bottom:14px"></div>
-
-    <!-- Endereços -->
-    <div style="font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
-      <span>Endereços</span>
-      <button class="btn" style="padding:4px 10px;font-size:12px" onclick="addEndereco()"><i class="ti ti-plus"></i>Adicionar</button>
-    </div>
-    <div id="lista-enderecos" style="margin-bottom:14px"></div>
-
-    <!-- Observações -->
-    <div class="fg" style="margin-bottom:4px"><label>Observações</label><textarea id="pes-obs" placeholder="Informações adicionais…" style="min-height:50px"></textarea></div>
-
-    <div class="mfoot">
-      <button class="btn" onclick="fecharModal('modal-pes')">Cancelar</button>
-      <button class="btn primary" onclick="salvarPessoa()"><i class="ti ti-check"></i>Salvar pessoa</button>
     </div>
   </div>
 </div>
@@ -346,6 +286,54 @@ tr:hover td{background:#EBF4FD}
 
 <div class="toast" id="toast"></div>
 
+<!-- PAINEL ENVOLVIDOS -->
+<div id="painel-envolvidos" style="display:none;position:fixed;top:0;right:0;width:480px;height:100vh;background:#fff;box-shadow:-4px 0 30px rgba(0,0,0,0.15);z-index:200;overflow-y:auto;transition:transform .3s">
+  <div style="padding:1.2rem 1.4rem;border-bottom:1px solid rgba(0,0,0,.08);display:flex;align-items:center;justify-content:space-between;background:#185FA5;color:#fff">
+    <div>
+      <div style="font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:.05em">Envolvidos</div>
+      <div style="font-size:15px;font-weight:700" id="painel-cnj-titulo">—</div>
+    </div>
+    <button onclick="fecharEnvolvidos()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div style="padding:1rem">
+    <button class="btn primary" style="width:100%;margin-bottom:1rem;justify-content:center" onclick="abrirNovoEnvolvido()">
+      <i class="ti ti-user-plus"></i>Adicionar envolvido
+    </button>
+    <div id="lista-envolvidos-painel"></div>
+  </div>
+</div>
+<div id="overlay-envolvidos" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199" onclick="fecharEnvolvidos()"></div>
+
+<!-- MODAL ENVOLVIDO -->
+<div class="overlay" id="modal-envolvido" style="display:none" onclick="if(event.target===this)fecharModal('modal-envolvido')">
+  <div class="modal" style="max-width:640px">
+    <h2 id="modal-env-title"><i class="ti ti-user-plus" style="color:#534AB7"></i>Adicionar envolvido</h2>
+    <input type="hidden" id="env-id">
+    <input type="hidden" id="env-inq-id">
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fg"><label>Nome completo *</label><input id="env-nome" placeholder="Nome completo"></div>
+      <div class="fg"><label>Tipo de envolvimento *</label>
+        <select id="env-tipo">
+          <option>Vítima</option><option>Autor</option><option>Indiciado</option>
+          <option>Investigado</option><option>Declarante</option><option>Parte</option>
+          <option>Menor de Idade</option><option>Adolescente Infra</option>
+          <option>Tutor Responsável</option><option>Representante</option>
+        </select>
+      </div>
+      <div class="fg"><label>RG</label><input id="env-rg" placeholder="00.000.000-0"></div>
+      <div class="fg"><label>CPF</label><input id="env-cpf" placeholder="000.000.000-00"></div>
+      <div class="fg"><label>Data de Nascimento</label><input type="date" id="env-nasc"></div>
+      <div class="fg"><label>Telefone / WhatsApp</label><input id="env-tel" placeholder="(11) 99999-9999"></div>
+      <div class="fg full" style="grid-column:1/-1"><label>Endereço</label><input id="env-end" placeholder="Rua, número, bairro, cidade…"></div>
+      <div class="fg full" style="grid-column:1/-1"><label>Observações</label><textarea id="env-obs" placeholder="Informações adicionais…" style="min-height:50px"></textarea></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="fecharModal('modal-envolvido')">Cancelar</button>
+      <button class="btn primary" onclick="salvarEnvolvido()"><i class="ti ti-check"></i>Salvar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Versão ────────────────────────────────────────────
 const APP_VERSION = '2.5.0';
@@ -374,12 +362,12 @@ function setTab(t) {
   tabAtual = t;
   document.getElementById('pane-inq').style.display = t==='inq'?'block':'none';
   document.getElementById('pane-oit').style.display = t==='oit'?'block':'none';
-  document.getElementById('pane-pes').style.display = t==='pes'?'block':'none';
+
   document.getElementById('tab-inq').className = 'tab' + (t==='inq'?' active':'');
   document.getElementById('tab-oit').className = 'tab' + (t==='oit'?' active':'');
-  document.getElementById('tab-pes').className = 'tab' + (t==='pes'?' active':'');
+
   if (t==='oit') carregarOitivas();
-  if (t==='pes') carregarPessoas();
+
 }
 function pill(txt, cls) { return `<span class="pill ${cls}">${txt}</span>`; }
 function fmt(v) { return v||'—'; }
@@ -1089,6 +1077,140 @@ async function removerPessoa(id) {
     if (r.ok) { carregarPessoas(); toast('✅ Pessoa removida.'); }
     else toast('❌ Erro ao remover.', true);
   } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
+}
+
+// ════════════════════════════════════════════════════════
+// ENVOLVIDOS
+// ════════════════════════════════════════════════════════
+let envolvidosInqId = null;
+let envolvidosCNJ = '';
+
+async function abrirEnvolvidos(inqId, cnj) {
+  envolvidosInqId = inqId;
+  envolvidosCNJ = cnj;
+  document.getElementById('painel-cnj-titulo').textContent = cnj;
+  document.getElementById('painel-envolvidos').style.display = 'block';
+  document.getElementById('overlay-envolvidos').style.display = 'block';
+  await carregarEnvolvidos();
+}
+
+function fecharEnvolvidos() {
+  document.getElementById('painel-envolvidos').style.display = 'none';
+  document.getElementById('overlay-envolvidos').style.display = 'none';
+}
+
+async function carregarEnvolvidos() {
+  try {
+    const r = await fetch(`/api/envolvidos/${envolvidosInqId}`);
+    const lista = await r.json();
+    renderEnvolvidos(lista);
+  } catch(e) { toast('❌ Erro ao carregar envolvidos: ' + e.message, true); }
+}
+
+function renderEnvolvidos(lista) {
+  const div = document.getElementById('lista-envolvidos-painel');
+  if (!lista.length) {
+    div.innerHTML = '<div style="text-align:center;padding:2rem;color:#aaa"><i class="ti ti-users-off" style="font-size:36px;display:block;margin-bottom:8px;opacity:.4"></i>Nenhum envolvido cadastrado</div>';
+    return;
+  }
+  div.innerHTML = lista.map(e => {
+    const nasc = e.data_nascimento ? new Date(e.data_nascimento+'T12:00:00').toLocaleDateString('pt-BR') : null;
+    const tipoCor = {
+      'Vítima':'#0F6E56','Autor':'#A32D2D','Indiciado':'#A32D2D',
+      'Investigado':'#854F0B','Declarante':'#185FA5','Parte':'#185FA5',
+      'Menor de Idade':'#534AB7','Adolescente Infra':'#534AB7',
+      'Tutor Responsável':'#5F5E5A','Representante':'#5F5E5A'
+    }[e.tipo_envolvimento] || '#185FA5';
+    return `<div style="background:#f9f9f7;border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <span style="background:${tipoCor}20;color:${tipoCor};font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">${e.tipo_envolvimento}</span>
+          <strong style="margin-left:8px;font-size:14px">${e.nome}</strong>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${e.telefone ? `<a href="https://wa.me/55${e.telefone.replace(/\D/g,'')}" target="_blank" class="ibtn" style="background:#25D366;color:#fff;border-color:#25D366" title="WhatsApp"><i class="ti ti-brand-whatsapp"></i></a>` : ''}
+          <button class="ibtn" onclick='editarEnvolvido(${JSON.stringify(e).replace(/'/g,"&#39;")})' title="Editar"><i class="ti ti-edit"></i></button>
+          <button class="ibtn del" onclick="removerEnvolvido(${e.id})" title="Remover"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#555">
+        ${e.rg ? `<div><span style="color:#aaa">RG:</span> ${e.rg}</div>` : ''}
+        ${e.cpf ? `<div><span style="color:#aaa">CPF:</span> ${e.cpf}</div>` : ''}
+        ${nasc ? `<div><span style="color:#aaa">Nasc.:</span> ${nasc}</div>` : ''}
+        ${e.telefone ? `<div><span style="color:#aaa">Tel.:</span> ${e.telefone}</div>` : ''}
+        ${e.endereco ? `<div style="grid-column:1/-1"><span style="color:#aaa">End.:</span> ${e.endereco}</div>` : ''}
+        ${e.observacoes ? `<div style="grid-column:1/-1;color:#854F0B"><span style="color:#aaa">Obs.:</span> ${e.observacoes}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirNovoEnvolvido() {
+  document.getElementById('modal-env-title').innerHTML = '<i class="ti ti-user-plus" style="color:#534AB7"></i>Adicionar envolvido';
+  document.getElementById('env-id').value = '';
+  document.getElementById('env-inq-id').value = envolvidosInqId;
+  document.getElementById('env-nome').value = '';
+  document.getElementById('env-tipo').value = 'Vítima';
+  document.getElementById('env-rg').value = '';
+  document.getElementById('env-cpf').value = '';
+  document.getElementById('env-nasc').value = '';
+  document.getElementById('env-tel').value = '';
+  document.getElementById('env-end').value = '';
+  document.getElementById('env-obs').value = '';
+  document.getElementById('modal-envolvido').style.display = 'flex';
+}
+
+function editarEnvolvido(e) {
+  document.getElementById('modal-env-title').innerHTML = '<i class="ti ti-edit" style="color:#534AB7"></i>Editar envolvido';
+  document.getElementById('env-id').value = e.id;
+  document.getElementById('env-inq-id').value = e.inquerito_id;
+  document.getElementById('env-nome').value = e.nome||'';
+  document.getElementById('env-tipo').value = e.tipo_envolvimento||'Vítima';
+  document.getElementById('env-rg').value = e.rg||'';
+  document.getElementById('env-cpf').value = e.cpf||'';
+  document.getElementById('env-nasc').value = (e.data_nascimento||'').split('T')[0];
+  document.getElementById('env-tel').value = e.telefone||'';
+  document.getElementById('env-end').value = e.endereco||'';
+  document.getElementById('env-obs').value = e.observacoes||'';
+  document.getElementById('modal-envolvido').style.display = 'flex';
+}
+
+async function salvarEnvolvido() {
+  const id = document.getElementById('env-id').value;
+  const body = {
+    inquerito_id: document.getElementById('env-inq-id').value,
+    nome: document.getElementById('env-nome').value.trim(),
+    tipo_envolvimento: document.getElementById('env-tipo').value,
+    rg: document.getElementById('env-rg').value.trim(),
+    cpf: document.getElementById('env-cpf').value.trim(),
+    data_nascimento: document.getElementById('env-nasc').value || null,
+    telefone: document.getElementById('env-tel').value.trim(),
+    endereco: document.getElementById('env-end').value.trim(),
+    observacoes: document.getElementById('env-obs').value.trim(),
+  };
+  if (!body.nome) { toast('⚠️ Informe o nome.', false, true); return; }
+  const url = id ? `/api/envolvidos/${id}` : '/api/envolvidos';
+  const method = id ? 'PUT' : 'POST';
+  try {
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (r.ok) {
+      fecharModal('modal-envolvido');
+      carregarEnvolvidos();
+      toast('✅ Envolvido salvo!');
+    } else {
+      toast('❌ Erro: ' + (d.error||r.status), true);
+    }
+  } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
+}
+
+async function removerEnvolvido(id) {
+  if (!confirm('Remover este envolvido?')) return;
+  try {
+    const r = await fetch(`/api/envolvidos/${id}`, { method:'DELETE' });
+    if (r.ok) { carregarEnvolvidos(); toast('✅ Removido.'); }
+    else toast('❌ Erro ao remover.', true);
+  } catch(e) { toast('❌ Erro: ' + e.message, true); }
 }
 
 // ── Google Calendar ──────────────────────────────────
