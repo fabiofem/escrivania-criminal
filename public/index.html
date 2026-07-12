@@ -52,7 +52,7 @@ tr:hover td{background:#EBF4FD}
 .ibtn.del:hover{background:#FCEBEB;color:#a32d2d;border-color:#e24b4a}
 .ibtn.cal:hover{background:#E6F1FB;color:#185FA5}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:1rem}
-.modal{background:#fff;border-radius:14px;padding:1.5rem;width:100%;max-width:700px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal{background:#fff;border-radius:14px;padding:1.2rem 1.4rem;width:100%;max-width:780px;max-height:96vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
 .modal h2{font-size:16px;font-weight:700;margin-bottom:1.2rem;display:flex;align-items:center;gap:8px;color:#0C447C}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .fg{display:flex;flex-direction:column;gap:4px}
@@ -189,31 +189,64 @@ tr:hover td{background:#EBF4FD}
   <div class="modal">
     <h2 id="modal-oit-title"><i class="ti ti-calendar-plus" style="color:#534AB7"></i>Agendar oitiva</h2>
     <input type="hidden" id="oit-id">
-    <div class="grid2">
-      <div class="fg" id="fg-oit-cnj-select">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+
+      <!-- Linha 1: CNJ (full), Inquérito -->
+      <div class="fg" id="fg-oit-cnj-select" style="grid-column:1/3">
         <label>Nº CNJ</label>
         <select id="oit-cnj" onchange="preencherInqOitiva()">
           <option value="">Selecione o inquérito…</option>
         </select>
       </div>
-      <div class="fg" id="fg-oit-cnj-fixed" style="display:none">
+      <div class="fg" id="fg-oit-cnj-fixed" style="display:none;grid-column:1/3">
         <label>Nº CNJ</label>
-        <div id="oit-cnj-label" style="padding:8px 10px;background:#E6F1FB;border:1px solid #B5D4F4;border-radius:8px;font-family:monospace;font-size:12px;color:#0C447C;font-weight:700"></div>
+        <div id="oit-cnj-label" style="padding:8px 10px;background:#E6F1FB;border:1px solid #B5D4F4;border-radius:8px;font-family:monospace;font-size:11px;color:#0C447C;font-weight:700;word-break:break-all"></div>
         <input type="hidden" id="oit-cnj-hidden">
       </div>
-      <div class="fg"><label>Nº Inquérito</label><input id="oit-inq" placeholder="IP 123/2024" readonly style="background:#f5f5f0;color:#666"></div>
-      <div class="fg"><label>Nome da pessoa</label><input id="oit-pessoa" placeholder="Nome completo"></div>
-      <div class="fg"><label>Qualidade</label>
+      <div class="fg">
+        <label>Nº Inquérito</label>
+        <input id="oit-inq" placeholder="IP 123/2024">
+      </div>
+
+      <!-- Linha 2: Pessoa, Qualidade, Telefone -->
+      <div class="fg">
+        <label>Nome da pessoa</label>
+        <input id="oit-pessoa" placeholder="Nome completo">
+      </div>
+      <div class="fg">
+        <label>Qualidade</label>
         <select id="oit-qual"><option>Vítima</option><option>Investigado</option><option>Testemunha</option><option>Informante</option></select>
       </div>
-      <div class="fg"><label>Telefone</label><input id="oit-tel" placeholder="(11) 99999-9999"></div>
-      <div class="fg"><label>Data</label><input type="date" id="oit-data"></div>
-      <div class="fg"><label>Hora</label><input type="time" id="oit-hora" value="09:00"></div>
-      <div class="fg full"><label>Local</label><input id="oit-local" placeholder="Delegacia, sala, endereço…" value="Delegacia Central"></div>
-      <div class="fg"><label>Status</label>
+      <div class="fg">
+        <label>Telefone</label>
+        <input id="oit-tel" placeholder="(11) 99999-9999">
+      </div>
+
+      <!-- Linha 3: Data, Hora, Status -->
+      <div class="fg">
+        <label>Data</label>
+        <input type="date" id="oit-data">
+      </div>
+      <div class="fg">
+        <label>Hora</label>
+        <input type="time" id="oit-hora" value="09:00">
+      </div>
+      <div class="fg">
+        <label>Status</label>
         <select id="oit-status"><option>Agendada</option><option>Realizada</option><option>Cancelada</option><option>Remarcada</option></select>
       </div>
-      <div class="fg full"><label>Observações</label><textarea id="oit-obs" placeholder="Acompanhado de advogado, necessita intérprete…"></textarea></div>
+
+      <!-- Linha 4: Local (full) -->
+      <div class="fg" style="grid-column:1/-1">
+        <label>Local</label>
+        <input id="oit-local" placeholder="Delegacia, sala, endereço…" value="Delegacia Central">
+      </div>
+
+      <!-- Linha 5: Observações (full) -->
+      <div class="fg" style="grid-column:1/-1">
+        <label>Observações</label>
+        <textarea id="oit-obs" placeholder="Acompanhado de advogado, necessita intérprete…" style="min-height:60px"></textarea>
+      </div>
     </div>
     <div class="mfoot">
       <button class="btn" onclick="fecharModal('modal-oit')">Cancelar</button>
