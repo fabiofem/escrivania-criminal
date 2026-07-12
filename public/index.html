@@ -372,7 +372,15 @@ function setTab(t) {
 }
 function pill(txt, cls) { return `<span class="pill ${cls}">${txt}</span>`; }
 function fmt(v) { return v||'—'; }
-function fmtData(d) { if(!d) return '—'; const dt=new Date(d+'T12:00:00'); return dt.toLocaleDateString('pt-BR'); }
+function fmtData(d) {
+  if(!d) return '—';
+  try {
+    const s = String(d).split('T')[0]; // handles both '2025-07-20' and '2025-07-20T00:00:00'
+    const [y,m,dd] = s.split('-');
+    if(!y||!m||!dd) return '—';
+    return `${dd}/${m}/${y}`;
+  } catch(e) { return '—'; }
+}
 
 // ── Stats ──────────────────────────────────────────────
 async function carregarStats() {
@@ -564,14 +572,15 @@ function renderOitivas() {
     return;
   }
   tb.innerHTML = oitivas.map(o => {
-    const qCls = o.qualidade==='Vítima'?'p-ok':o.qualidade==='Investigado'?'p-urg':'p-azul';
+    const qual = o.tipo_envolvimento||o.qualidade||'—';
+    const qCls = qual==='Vítima'?'p-ok':(qual==='Investigado'||qual==='Indiciado'||qual==='Autor')?'p-urg':'p-azul';
     const sCls = o.status==='Realizada'?'p-sim':o.status==='Cancelada'?'p-urg':'p-pend';
     return `<tr>
       <td><span class="cnj">${o.cnj||'—'}</span></td>
       <td>${o.inquerito||'—'}</td>
-      <td><strong>${o.pessoa||'—'}</strong></td>
-      <td>${pill(o.qualidade,qCls)}</td>
-      <td>${o.telefone||'—'}</td>
+      <td><strong>${o.pessoa_nome||o.pessoa||'—'}</strong></td>
+      <td>${qual!=='—'?pill(qual,qCls):'—'}</td>
+      <td>${o.telefone||o.telefones_pessoa||'—'}</td>
       <td>${fmtData(o.data_oitiva)}</td>
       <td>${o.hora||'—'}</td>
       <td>${o.local_oitiva||'—'}</td>
