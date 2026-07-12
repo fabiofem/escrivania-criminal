@@ -871,6 +871,14 @@ app.post('/api/google/evento', async (req, res) => {
   }
 });
 
+// Salvar eventId do Calendar na oitiva
+app.post('/api/oitivas/:id/calendar-event', async (req, res) => {
+  try {
+    await pool.query('UPDATE oitivas SET calendar_event_id=$1 WHERE id=$2', [req.body.eventId, req.params.id]);
+    res.json({ ok: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // Deletar evento do Google Calendar
 app.delete('/api/google/evento/:eventId', async (req, res) => {
   try {
