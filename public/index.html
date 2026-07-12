@@ -1272,61 +1272,14 @@ async function salvarOitiva() {
       carregarOitivas();
       carregarStats();
 
-      if (abrirCal && body.data) {
-        if (googleConectado) {
-          try {
-            const cr = await fetch('/api/google/evento', {
-              method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify(body)
-            });
-            const cd = await cr.json();
-            if (cr.ok) {
-              toast('✅ Oitiva salva e evento criado no Google Calendar!');
-              return;
-            } else if (cr.status === 401) {
-              googleConectado = false;
-              atualizarBotaoGoogle();
-              toast('⚠️ Oitiva salva! Calendar desconectado — reconecte e tente novamente.', false, true);
-              return;
-            }
-          } catch(e) {}
-        }
-        const obj = { cnj:body.cnj, inquerito:body.inquerito, pessoa:body.pessoa,
-          qualidade:body.qualidade, telefone:body.telefone, data_oitiva:body.data,
-          hora:body.hora, local_oitiva:body.local, observacoes:body.obs };
-        toast('✅ Oitiva salva! Abrindo Google Calendar…');
-        setTimeout(() => window.open(gcalURL(obj), '_blank'), 400);
-      } else if (abrirWhatsApp) {
-        const tel = body.telefone ? body.telefone.replace(/\D/g,'') : '';
-        if (!tel) {
-          toast('⚠️ Oitiva salva! Mas a pessoa não tem telefone cadastrado.', false, true);
-          return;
-        }
-        const dataFmt = body.data ? new Date(body.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-        // Busca BO do inquérito
-        const inqData = inqueritos.find(r => r.cnj === body.cnj) || {};
-        const msg = gerarMensagemOitiva({
-          pessoa: body.pessoa,
-          qualidade: body.qualidade || body.tipo_envolvimento,
-          inquerito: body.inquerito,
-          cnj: body.cnj,
-          data: dataFmt,
-          hora: body.hora,
-          local: body.local,
-          bo: inqData.bo || '',
-        });
-        toast('✅ Oitiva salva! Abrindo WhatsApp…');
-        setTimeout(() => window.open(whatsappURL(tel, msg), '_blank'), 400);
-      } else {
-        // Mostra alerta de WhatsApp após salvar
-        document.getElementById('oit-salvo').value = '1';
-        document.getElementById('btn-salvar-oit').innerHTML = '<i class="ti ti-check"></i>Salvo!';
-        document.getElementById('btn-salvar-oit').disabled = true;
-        const alerta = document.getElementById('alerta-whatsapp');
-        alerta.style.display = 'flex';
-        toast('✅ Intimação salva! Envie a notificação por WhatsApp.');
-      }
+      // Mostra painel de notificação
+      document.getElementById('oit-salvo').value = '1';
+      const btnS = document.getElementById('btn-salvar-oit');
+      if(btnS){btnS.disabled=true;btnS.innerHTML='<i class="ti ti-check"></i>Salvo!';}
+      const alerta = document.getElementById('alerta-whatsapp');
+      if(alerta){alerta.style.display='block';}
+      preencherEmailCorpo();
+      toast('✅ Intimação salva! Escolha como notificar.');
     } else {
       toast('❌ Erro ao salvar oitiva: ' + (d.error || r.status), true);
     }
