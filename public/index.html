@@ -74,6 +74,8 @@ tr:hover td{background:#EBF4FD}
 .toast.err{background:#c0392b}
 .toast.warn{background:#854F0B}
 .loading{text-align:center;padding:2rem;color:#888;font-size:13px}
+.sc.ativo{outline:3px solid #185FA5;background:#E6F1FB}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -95,11 +97,11 @@ tr:hover td{background:#EBF4FD}
   </div>
 
   <div class="stats">
-    <div class="sc"><div class="lbl">Inquéritos</div><div class="val" id="st-total" style="color:#185FA5">0</div></div>
-    <div class="sc"><div class="lbl">Relatados ao MP</div><div class="val" id="st-relat" style="color:#3B6D11">0</div></div>
-    <div class="sc"><div class="lbl">Com pendências</div><div class="val" id="st-pend" style="color:#854F0B">0</div></div>
-    <div class="sc"><div class="lbl">Com denúncia</div><div class="val" id="st-denu" style="color:#185FA5">0</div></div>
-    <div class="sc"><div class="lbl">Oitivas agendadas</div><div class="val" id="st-oag" style="color:#534AB7">0</div></div>
+    <div class="sc" onclick="filtrarPor('')" style="cursor:pointer" title="Mostrar todos"><div class="lbl">Inquéritos</div><div class="val" id="st-total" style="color:#185FA5">0</div></div>
+    <div class="sc" onclick="filtrarPor('relatado')" style="cursor:pointer" title="Filtrar relatados ao MP"><div class="lbl">↗ Relatados ao MP</div><div class="val" id="st-relat" style="color:#3B6D11">0</div></div>
+    <div class="sc" onclick="filtrarPor('cota')" style="cursor:pointer" title="Filtrar com Cota do MP"><div class="lbl">↗ Cota do MP</div><div class="val" id="st-pend" style="color:#854F0B">0</div></div>
+    <div class="sc" onclick="filtrarPor('denuncia')" style="cursor:pointer" title="Filtrar com denúncia"><div class="lbl">↗ Com denúncia</div><div class="val" id="st-denu" style="color:#185FA5">0</div></div>
+    <div class="sc" onclick="setTab('oit')" style="cursor:pointer" title="Ver agenda de oitivas"><div class="lbl">↗ Oitivas agendadas</div><div class="val" id="st-oag" style="color:#534AB7">0</div></div>
   </div>
 
   <div class="tabs">
@@ -240,6 +242,8 @@ tr:hover td{background:#EBF4FD}
 let tabAtual = 'inq';
 let inqueritos = [];
 let oitivas = [];
+let filtroAtivo = ''; // 'relatado', 'cota', 'denuncia', ''
+
 
 // ── Utilitários ────────────────────────────────────────
 function toast(msg, err=false, warn=false) {
@@ -272,7 +276,7 @@ async function carregarStats() {
     const s = await r.json();
     document.getElementById('st-total').textContent = s.total;
     document.getElementById('st-relat').textContent = s.relatados;
-    document.getElementById('st-pend').textContent = s.pendentes;
+    document.getElementById('st-pend').textContent = s.comCota;
     document.getElementById('st-denu').textContent = s.comDenuncia;
     document.getElementById('st-oag').textContent = s.oitivasAgendadas;
     document.getElementById('badge-total').textContent = s.total + ' procedimentos';
@@ -282,26 +286,48 @@ async function carregarStats() {
 // ════════════════════════════════════════════════════════
 // INQUÉRITOS
 // ════════════════════════════════════════════════════════
+function filtrarPor(tipo) {
+  filtroAtivo = filtroAtivo === tipo ? '' : tipo; // toggle
+  // Highlight active card
+  document.querySelectorAll('.sc').forEach(el => el.classList.remove('ativo'));
+  if (filtroAtivo) {
+    const idx = {relatado:1, cota:2, denuncia:3};
+    const cards = document.querySelectorAll('.sc');
+    if (cards[idx[filtroAtivo]]) cards[idx[filtroAtivo]].classList.add('ativo');
+  }
+  setTab('inq');
+  renderInqueritos();
+}
+
 async function carregarInqueritos() {
   const q = document.getElementById('busca').value.trim();
   const url = '/api/inqueritos' + (q ? `?search=${encodeURIComponent(q)}` : '');
   try {
-  const r = await fetch(url);
-  if(!r.ok) throw new Error(await r.text());
-  inqueritos = await r.json();
-  renderInqueritos();
-  popularSelectCNJ();
-  carregarStats();
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Erro ' + r.status);
+    inqueritos = await r.json();
+    renderInqueritos();
+    popularSelectCNJ();
+    carregarStats();
+  } catch(e) {
+    toast('❌ Erro ao carregar inquéritos: ' + e.message, true);
+  }
 }
 
 function renderInqueritos() {
   const tb = document.getElementById('tbody-inq');
-  document.getElementById('count-inq').textContent = `${inqueritos.length} registros`;
-  if (!inqueritos.length) {
+  // Apply active filter
+  let lista = inqueritos;
+  if (filtroAtivo === 'relatado') lista = inqueritos.filter(r => r.relatado && r.relatado.toLowerCase().includes('sim'));
+  if (filtroAtivo === 'cota') lista = inqueritos.filter(r => r.cota_mp && r.cota_mp.toLowerCase().includes('sim'));
+  if (filtroAtivo === 'denuncia') lista = inqueritos.filter(r => r.denuncia && r.denuncia.toLowerCase().includes('sim'));
+  const label = filtroAtivo ? ` (filtro: ${filtroAtivo === 'cota' ? 'Cota MP' : filtroAtivo === 'relatado' ? 'Relatados' : 'Com Denúncia'} — clique no card para remover)` : '';
+  document.getElementById('count-inq').textContent = `${lista.length} registros${label}`;
+  if (!lista.length) {
     tb.innerHTML = `<tr><td colspan="17"><div class="empty"><i class="ti ti-files-off"></i><h3>Nenhum procedimento encontrado</h3><p>Importe uma planilha ou adicione manualmente.</p></div></td></tr>`;
     return;
   }
-  tb.innerHTML = inqueritos.map(r => `<tr>
+  tb.innerHTML = lista.map(r => `<tr>
     <td>${r.ano||'—'}</td>
     <td><span class="cnj">${r.cnj||'—'}</span></td>
     <td>${r.inquerito||'—'}</td>
@@ -567,21 +593,30 @@ async function importarExcel(input) {
   const file = input.files[0]; if (!file) return;
   const fd = new FormData();
   fd.append('arquivo', file);
-  toast('⏳ Importando planilha…');
+  // Show loading indicator
+  const label = document.querySelector('label.btn[style*="cursor:pointer"]');
+  if (label) label.innerHTML = '<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Importando…';
+  toast('⏳ Importando planilha, aguarde…');
   try {
-    const r = await fetch('/api/importar', { method:'POST', body: fd });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+    const r = await fetch('/api/importar', { method:'POST', body: fd, signal: controller.signal });
+    clearTimeout(timeout);
     const d = await r.json();
     if (r.ok) {
-      carregarInqueritos();
-      const msg = `✅ ${d.importados} novos + ${d.atualizados} atualizados = ${d.total} registros` + (d.erros > 0 ? ` (${d.erros} erros)` : '');
+      await carregarInqueritos();
+      const msg = `✅ ${d.importados} novos + ${d.atualizados} atualizados = ${d.total} registros` + (d.erros > 0 ? ` ⚠️ ${d.erros} linha(s) com erro` : '');
       toast(msg);
     } else {
       toast('❌ Erro na importação: ' + (d.error || 'Erro desconhecido'), true);
     }
   } catch(e) {
-    toast('❌ Erro de conexão ao importar: ' + e.message, true);
+    if (e.name === 'AbortError') toast('❌ Tempo esgotado. Tente novamente.', true);
+    else toast('❌ Erro ao importar: ' + e.message, true);
+  } finally {
+    if (label) label.innerHTML = '<i class="ti ti-upload"></i>Importar Excel<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcel(this)">';
+    input.value = '';
   }
-  input.value = '';
 }
 
 // ════════════════════════════════════════════════════════
