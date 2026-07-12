@@ -326,6 +326,24 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// ── Reset banco de dados ──────────────────────────────────
+app.post('/api/reset', async (req, res) => {
+  try {
+    const { senha } = req.body;
+    if (senha !== '240815') {
+      return res.status(401).json({ error: 'Senha incorreta.' });
+    }
+    await pool.query('DELETE FROM oitivas');
+    await pool.query('DELETE FROM inqueritos');
+    await pool.query('ALTER SEQUENCE inqueritos_id_seq RESTART WITH 1');
+    await pool.query('ALTER SEQUENCE oitivas_id_seq RESTART WITH 1');
+    console.log('⚠️ Banco de dados resetado');
+    res.json({ ok: true, mensagem: 'Base de dados apagada com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── SPA fallback ──────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
