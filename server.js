@@ -735,6 +735,42 @@ app.post('/api/google/desconectar', (req, res) => {
 });
 
 // Criar evento no Google Calendar
+// Buscar eventos do Google Calendar (próximos 30 dias)
+app.get('/api/google/eventos', async (req, res) => {
+  try {
+    const calendar = getCalendarClient();
+    if (!calendar) return res.status(401).json({ error: 'Google Calendar não autorizado.' });
+
+    const { inicio, fim } = req.query;
+    const timeMin = inicio ? new Date(inicio).toISOString() : new Date().toISOString();
+    const timeMax = fim ? new Date(fim).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString();
+
+    const result = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin,
+      timeMax,
+      singleEvents: true,
+      orderBy: 'startTime',
+      maxResults: 100,
+    });
+
+    const eventos = (result.data.items || []).map(e => ({
+      id: e.id,
+      titulo: e.summary || '(sem título)',
+      inicio: e.start?.dateTime || e.start?.date,
+      fim: e.end?.dateTime || e.end?.date,
+      diaInteiro: !e.start?.dateTime,
+      local: e.location || '',
+      cor: e.colorId || '1',
+    }));
+
+    res.json(eventos);
+  } catch (err) {
+    if (err.code === 401) { googleTokens = null; return res.status(401).json({ error: 'Token expirado.' }); }
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/google/evento', async (req, res) => {
   try {
     const calendar = getCalendarClient();
