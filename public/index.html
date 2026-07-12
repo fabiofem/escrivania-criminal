@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.7.1</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.7.2</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -250,7 +250,7 @@ tr:hover td{background:#EBF4FD}
         <label>Hora</label>
         <div style="display:flex;gap:8px;align-items:flex-end">
           <input type="time" id="oit-hora" value="09:00" style="flex:1">
-          <button class="btn" onclick="abrirAgenda()" style="background:#1a73e8;color:#fff;border-color:#1a73e8;white-space:nowrap" title="Ver minha agenda">
+          <button class="btn" onclick="abrirModalAgenda()" style="background:#1a73e8;color:#fff;border-color:#1a73e8;white-space:nowrap" title="Agendar no Google Calendar">
             <i class="ti ti-calendar-search"></i> Agenda
           </button>
         </div>
@@ -288,6 +288,31 @@ tr:hover td{background:#EBF4FD}
       <button class="btn" onclick="fecharModal('modal-oit')">Fechar</button>
       <button class="btn gcal" onclick="salvarOitiva(true)"><i class="ti ti-brand-google"></i>Salvar + Calendar</button>
       <button class="btn primary" id="btn-salvar-oit" onclick="salvarOitiva(false)"><i class="ti ti-check"></i>Salvar Intimação</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AGENDA (escolher data/hora e salvar no Calendar) -->
+<div class="overlay" id="modal-agenda" style="display:none" onclick="if(event.target===this)fecharModal('modal-agenda')">
+  <div class="modal" style="max-width:420px">
+    <h2><i class="ti ti-calendar-event" style="color:#1a73e8"></i>Agendar no Google Calendar</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:1rem">Escolha a data e horário. O evento será criado automaticamente na sua agenda do Gmail.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="fg">
+        <label>Data *</label>
+        <input type="date" id="agenda-data">
+      </div>
+      <div class="fg">
+        <label>Hora início *</label>
+        <input type="time" id="agenda-hora" value="09:00">
+      </div>
+    </div>
+    <div id="agenda-status" style="display:none;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px"></div>
+    <div class="mfoot">
+      <button class="btn" onclick="fecharModal('modal-agenda')">Cancelar</button>
+      <button class="btn" id="btn-agenda-salvar" style="background:#1a73e8;color:#fff;border-color:#1a73e8" onclick="salvarNoCalendar()">
+        <i class="ti ti-brand-google"></i>Criar evento e confirmar
+      </button>
     </div>
   </div>
 </div>
@@ -363,7 +388,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '2.7.1';
+const APP_VERSION = '2.7.2';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -625,10 +650,84 @@ function renderOitivas() {
 
 // ── Agenda e WhatsApp Intimação ───────────────────────
 function abrirAgenda() {
-  // Abre o Google Calendar na visão de semana para escolher data/hora
-  const url = 'https://calendar.google.com/calendar/r/week';
-  window.open(url, '_blank', 'width=1100,height=700');
-  toast('📅 Escolha o melhor dia e horário na sua agenda, depois preencha aqui!', false, true);
+  // fallback - abre calendar direto
+  window.open('https://calendar.google.com/calendar/r/week', '_blank');
+}
+
+function abrirModalAgenda() {
+  // Pré-preenche com valores já existentes no modal
+  const dataAtual = document.getElementById('oit-data').value;
+  const horaAtual = document.getElementById('oit-hora').value;
+  document.getElementById('agenda-data').value = dataAtual || '';
+  document.getElementById('agenda-hora').value = horaAtual || '09:00';
+  document.getElementById('agenda-status').style.display = 'none';
+  document.getElementById('btn-agenda-salvar').disabled = false;
+  document.getElementById('btn-agenda-salvar').innerHTML = '<i class="ti ti-brand-google"></i>Criar evento e confirmar';
+  document.getElementById('modal-agenda').style.display = 'flex';
+}
+
+async function salvarNoCalendar() {
+  const data = document.getElementById('agenda-data').value;
+  const hora = document.getElementById('agenda-hora').value;
+  const status = document.getElementById('agenda-status');
+
+  if (!data) { 
+    status.style.display = 'block';
+    status.style.background = '#FCEBEB';
+    status.style.color = '#A32D2D';
+    status.textContent = '⚠️ Selecione a data antes de continuar.';
+    return; 
+  }
+
+  const btn = document.getElementById('btn-agenda-salvar');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Criando evento…';
+  status.style.display = 'none';
+
+  // Pega dados do modal de intimação para criar o evento
+  const cnj = document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value;
+  const inq = document.getElementById('oit-inq').value;
+  const pessoa = document.getElementById('oit-pessoa').value || 'A definir';
+  const qual = document.getElementById('oit-qual').value;
+  const local = document.getElementById('oit-local').value;
+  const obs = document.getElementById('oit-obs').value;
+  const bo = document.getElementById('oit-bo') ? document.getElementById('oit-bo').value : '';
+
+  try {
+    const r = await fetch('/api/google/evento', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ cnj, inquerito: inq, pessoa, qualidade: qual, data, hora, local, obs, bo })
+    });
+    const d = await r.json();
+
+    if (r.ok && d.ok) {
+      // Sucesso — preenche os campos e fecha o modal
+      document.getElementById('oit-data').value = data;
+      document.getElementById('oit-hora').value = hora;
+      fecharModal('modal-agenda');
+      toast('✅ Evento criado no Google Calendar! Data e hora preenchidas.');
+    } else if (r.status === 401) {
+      // Token expirado
+      status.style.display = 'block';
+      status.style.background = '#FCEBEB';
+      status.style.color = '#A32D2D';
+      status.innerHTML = '❌ Google Calendar desconectado. <a href="/auth/google" target="_blank" style="color:#185FA5">Clique aqui para reconectar</a> e tente novamente.';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-brand-google"></i>Criar evento e confirmar';
+      googleConectado = false;
+      atualizarBotaoGoogle();
+    } else {
+      throw new Error(d.error || 'Erro desconhecido');
+    }
+  } catch(e) {
+    status.style.display = 'block';
+    status.style.background = '#FCEBEB';
+    status.style.color = '#A32D2D';
+    status.textContent = '❌ Erro ao criar evento: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-brand-google"></i>Tentar novamente';
+  }
 }
 
 function enviarWhatsAppIntimacao() {
