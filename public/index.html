@@ -1120,7 +1120,6 @@ function conectarGoogle() {
   setTimeout(verificarStatusGoogle, 6000);
   setTimeout(verificarStatusGoogle, 10000);
 }
-
 async function desconectarGoogle() {
   if (!confirm('Desconectar o Google Calendar?')) return;
   await fetch('/api/google/desconectar', { method: 'POST' });
