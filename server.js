@@ -83,7 +83,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 
 // ── Inicializar tabelas ─────────────────────────────────
 async function initDB() {
-  // Cria tabelas se não existirem (todos campos TEXT para evitar limite de tamanho)
+  // Tabela de inquéritos
   await pool.query(`
     CREATE TABLE IF NOT EXISTS inqueritos (
       id SERIAL PRIMARY KEY,
@@ -106,24 +106,66 @@ async function initDB() {
       criado_em TIMESTAMP DEFAULT NOW(),
       atualizado_em TIMESTAMP DEFAULT NOW()
     );
+  `);
 
+  // Tabela de pessoas (cadastro completo)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pessoas (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      rg TEXT,
+      cpf TEXT,
+      data_nascimento DATE,
+      observacoes TEXT,
+      criado_em TIMESTAMP DEFAULT NOW(),
+      atualizado_em TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  // Tabela de telefones da pessoa (múltiplos)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pessoa_telefones (
+      id SERIAL PRIMARY KEY,
+      pessoa_id INTEGER REFERENCES pessoas(id) ON DELETE CASCADE,
+      telefone TEXT NOT NULL,
+      tipo TEXT DEFAULT 'Celular'
+    );
+  `);
+
+  // Tabela de endereços da pessoa (múltiplos)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pessoa_enderecos (
+      id SERIAL PRIMARY KEY,
+      pessoa_id INTEGER REFERENCES pessoas(id) ON DELETE CASCADE,
+      cep TEXT,
+      rua TEXT,
+      numero TEXT,
+      complemento TEXT,
+      bairro TEXT,
+      cidade TEXT,
+      tipo TEXT DEFAULT 'Residencial'
+    );
+  `);
+
+  // Tabela de oitivas (vincula pessoa ao inquérito)
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS oitivas (
       id SERIAL PRIMARY KEY,
       cnj TEXT,
       inquerito TEXT,
-      pessoa TEXT,
-      qualidade TEXT,
+      pessoa_id INTEGER REFERENCES pessoas(id) ON DELETE SET NULL,
+      pessoa_nome TEXT,
+      tipo_envolvimento TEXT DEFAULT 'Vítima',
       data_oitiva DATE,
       hora TEXT,
       local_oitiva TEXT,
       status TEXT DEFAULT 'Agendada',
-      telefone TEXT,
       observacoes TEXT,
       criado_em TIMESTAMP DEFAULT NOW()
     );
   `);
 
-  // Migração: garante que colunas antigas com VARCHAR virem TEXT
+  // Migrações para tabelas existentes
   await pool.query(`
     ALTER TABLE inqueritos
       ALTER COLUMN natureza TYPE TEXT,
@@ -140,10 +182,17 @@ async function initDB() {
       ALTER COLUMN anp TYPE TEXT,
       ALTER COLUMN denuncia TYPE TEXT,
       ALTER COLUMN atualizado TYPE TEXT;
-  `).catch(() => {}); // ignora erro se já forem TEXT
+  `).catch(() => {});
 
-  // Migração: adiciona coluna telefone se não existir
-  await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS telefone TEXT`).catch(() => {});
+  // Migrações oitivas — adiciona colunas novas se não existirem
+  await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS pessoa_id INTEGER REFERENCES pessoas(id) ON DELETE SET NULL`).catch(() => {});
+  await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS pessoa_nome TEXT`).catch(() => {});
+  await pool.query(`ALTER TABLE oitivas ADD COLUMN IF NOT EXISTS tipo_envolvimento TEXT DEFAULT 'Vítima'`).catch(() => {});
+  // Renomeia qualidade -> tipo_envolvimento se existir
+  await pool.query(`ALTER TABLE oitivas RENAME COLUMN qualidade TO tipo_envolvimento`).catch(() => {});
+  await pool.query(`ALTER TABLE oitivas RENAME COLUMN pessoa TO pessoa_nome`).catch(() => {});
+  // Remove telefone da oitiva (agora fica em pessoa_telefones)
+  await pool.query(`ALTER TABLE oitivas DROP COLUMN IF EXISTS telefone`).catch(() => {});
 
   console.log('✅ Banco de dados inicializado');
 }
@@ -241,16 +290,174 @@ app.delete('/api/inqueritos/:id', async (req, res) => {
 });
 
 // ════════════════════════════════════════════════════════
-// ROTAS — OITIVAS
+// ROTAS — PESSOAS
+// ════════════════════════════════════════════════════════
+
+const TIPOS_ENVOLVIMENTO = ['Vítima','Autor','Indiciado','Investigado','Declarante','Parte','Menor de Idade','Adolescente Infra','Tutor Responsável','Representante'];
+
+// Listar pessoas (com telefones e endereços)
+app.get('/api/pessoas', async (req, res) => {
+  try {
+    const { search } = req.query;
+    let q = 'SELECT * FROM pessoas';
+    let params = [];
+    if (search) {
+      q += ' WHERE nome ILIKE $1 OR cpf ILIKE $1 OR rg ILIKE $1';
+      params = [`%${search}%`];
+    }
+    q += ' ORDER BY nome ASC';
+    const pessoas = await pool.query(q, params);
+
+    // Para cada pessoa, busca telefones e endereços
+    const result = await Promise.all(pessoas.rows.map(async p => {
+      const [tels, ends] = await Promise.all([
+        pool.query('SELECT * FROM pessoa_telefones WHERE pessoa_id=$1 ORDER BY id', [p.id]),
+        pool.query('SELECT * FROM pessoa_enderecos WHERE pessoa_id=$1 ORDER BY id', [p.id]),
+      ]);
+      return { ...p, telefones: tels.rows, enderecos: ends.rows };
+    }));
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Buscar pessoa por ID
+app.get('/api/pessoas/:id', async (req, res) => {
+  try {
+    const p = await pool.query('SELECT * FROM pessoas WHERE id=$1', [req.params.id]);
+    if (!p.rows.length) return res.status(404).json({ error: 'Pessoa não encontrada' });
+    const [tels, ends] = await Promise.all([
+      pool.query('SELECT * FROM pessoa_telefones WHERE pessoa_id=$1 ORDER BY id', [req.params.id]),
+      pool.query('SELECT * FROM pessoa_enderecos WHERE pessoa_id=$1 ORDER BY id', [req.params.id]),
+    ]);
+    res.json({ ...p.rows[0], telefones: tels.rows, enderecos: ends.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Criar pessoa
+app.post('/api/pessoas', async (req, res) => {
+  try {
+    const d = req.body;
+    const p = await pool.query(`
+      INSERT INTO pessoas (nome, rg, cpf, data_nascimento, observacoes)
+      VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [str(d.nome), str(d.rg), str(d.cpf), d.data_nascimento||null, str(d.observacoes)]
+    );
+    const pessoa = p.rows[0];
+
+    // Insere telefones
+    if (d.telefones && d.telefones.length) {
+      for (const t of d.telefones) {
+        if (t.telefone) await pool.query(
+          'INSERT INTO pessoa_telefones (pessoa_id, telefone, tipo) VALUES ($1,$2,$3)',
+          [pessoa.id, str(t.telefone), str(t.tipo)||'Celular']
+        );
+      }
+    }
+
+    // Insere endereços
+    if (d.enderecos && d.enderecos.length) {
+      for (const e of d.enderecos) {
+        if (e.rua || e.cep) await pool.query(
+          'INSERT INTO pessoa_enderecos (pessoa_id, cep, rua, numero, complemento, bairro, cidade, tipo) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+          [pessoa.id, str(e.cep), str(e.rua), str(e.numero), str(e.complemento), str(e.bairro), str(e.cidade), str(e.tipo)||'Residencial']
+        );
+      }
+    }
+
+    const full = await pool.query('SELECT * FROM pessoas WHERE id=$1', [pessoa.id]);
+    const [tels, ends] = await Promise.all([
+      pool.query('SELECT * FROM pessoa_telefones WHERE pessoa_id=$1', [pessoa.id]),
+      pool.query('SELECT * FROM pessoa_enderecos WHERE pessoa_id=$1', [pessoa.id]),
+    ]);
+    res.json({ ...full.rows[0], telefones: tels.rows, enderecos: ends.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Atualizar pessoa
+app.put('/api/pessoas/:id', async (req, res) => {
+  try {
+    const d = req.body;
+    const id = req.params.id;
+    await pool.query(`
+      UPDATE pessoas SET nome=$1, rg=$2, cpf=$3, data_nascimento=$4, observacoes=$5, atualizado_em=NOW()
+      WHERE id=$6`,
+      [str(d.nome), str(d.rg), str(d.cpf), d.data_nascimento||null, str(d.observacoes), id]
+    );
+
+    // Recria telefones
+    await pool.query('DELETE FROM pessoa_telefones WHERE pessoa_id=$1', [id]);
+    if (d.telefones && d.telefones.length) {
+      for (const t of d.telefones) {
+        if (t.telefone) await pool.query(
+          'INSERT INTO pessoa_telefones (pessoa_id, telefone, tipo) VALUES ($1,$2,$3)',
+          [id, str(t.telefone), str(t.tipo)||'Celular']
+        );
+      }
+    }
+
+    // Recria endereços
+    await pool.query('DELETE FROM pessoa_enderecos WHERE pessoa_id=$1', [id]);
+    if (d.enderecos && d.enderecos.length) {
+      for (const e of d.enderecos) {
+        if (e.rua || e.cep) await pool.query(
+          'INSERT INTO pessoa_enderecos (pessoa_id, cep, rua, numero, complemento, bairro, cidade, tipo) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+          [id, str(e.cep), str(e.rua), str(e.numero), str(e.complemento), str(e.bairro), str(e.cidade), str(e.tipo)||'Residencial']
+        );
+      }
+    }
+
+    const full = await pool.query('SELECT * FROM pessoas WHERE id=$1', [id]);
+    const [tels, ends] = await Promise.all([
+      pool.query('SELECT * FROM pessoa_telefones WHERE pessoa_id=$1', [id]),
+      pool.query('SELECT * FROM pessoa_enderecos WHERE pessoa_id=$1', [id]),
+    ]);
+    res.json({ ...full.rows[0], telefones: tels.rows, enderecos: ends.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remover pessoa
+app.delete('/api/pessoas/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM pessoas WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Listar tipos de envolvimento
+app.get('/api/tipos-envolvimento', (req, res) => {
+  res.json(TIPOS_ENVOLVIMENTO);
+});
+
+// ════════════════════════════════════════════════════════
+// ROTAS — OITIVAS (atualizado)
 // ════════════════════════════════════════════════════════
 
 app.get('/api/oitivas', async (req, res) => {
   try {
     const { cnj } = req.query;
-    let query = 'SELECT * FROM oitivas';
+    let query = `
+      SELECT o.*, p.rg, p.cpf, p.data_nascimento,
+        COALESCE(
+          (SELECT string_agg(t.telefone, ', ') FROM pessoa_telefones t WHERE t.pessoa_id = o.pessoa_id),
+          ''
+        ) as telefones_pessoa
+      FROM oitivas o
+      LEFT JOIN pessoas p ON p.id = o.pessoa_id
+    `;
     let params = [];
-    if (cnj) { query += ' WHERE cnj=$1'; params = [cnj]; }
-    query += ' ORDER BY data_oitiva ASC NULLS LAST, hora ASC';
+    if (cnj) { query += ' WHERE o.cnj=$1'; params = [cnj]; }
+    query += ' ORDER BY o.data_oitiva ASC NULLS LAST, o.hora ASC';
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -262,10 +469,11 @@ app.post('/api/oitivas', async (req, res) => {
   try {
     const d = req.body;
     const result = await pool.query(`
-      INSERT INTO oitivas (cnj,inquerito,pessoa,qualidade,data_oitiva,hora,local_oitiva,status,telefone,observacoes)
+      INSERT INTO oitivas (cnj, inquerito, pessoa_id, pessoa_nome, tipo_envolvimento, data_oitiva, hora, local_oitiva, status, observacoes)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [str(d.cnj), str(d.inquerito), str(d.pessoa), str(d.qualidade),
-       d.data || null, str(d.hora), str(d.local), str(d.status), str(d.telefone||''), str(d.obs)]
+      [str(d.cnj), str(d.inquerito), d.pessoa_id||null, str(d.pessoa_nome||d.pessoa),
+       str(d.tipo_envolvimento||d.qualidade||'Vítima'),
+       d.data||null, str(d.hora), str(d.local), str(d.status), str(d.obs)]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -277,11 +485,12 @@ app.put('/api/oitivas/:id', async (req, res) => {
   try {
     const d = req.body;
     const result = await pool.query(`
-      UPDATE oitivas SET cnj=$1,inquerito=$2,pessoa=$3,qualidade=$4,
-        data_oitiva=$5,hora=$6,local_oitiva=$7,status=$8,telefone=$9,observacoes=$10
+      UPDATE oitivas SET cnj=$1, inquerito=$2, pessoa_id=$3, pessoa_nome=$4,
+        tipo_envolvimento=$5, data_oitiva=$6, hora=$7, local_oitiva=$8, status=$9, observacoes=$10
       WHERE id=$11 RETURNING *`,
-      [str(d.cnj), str(d.inquerito), str(d.pessoa), str(d.qualidade),
-       d.data || null, str(d.hora), str(d.local), str(d.status), str(d.telefone||''), str(d.obs), req.params.id]
+      [str(d.cnj), str(d.inquerito), d.pessoa_id||null, str(d.pessoa_nome||d.pessoa),
+       str(d.tipo_envolvimento||d.qualidade||'Vítima'),
+       d.data||null, str(d.hora), str(d.local), str(d.status), str(d.obs), req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
