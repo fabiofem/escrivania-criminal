@@ -100,6 +100,7 @@ async function initDB() {
       hora TEXT,
       local_oitiva TEXT,
       status TEXT DEFAULT 'Agendada',
+      telefone TEXT,
       observacoes TEXT,
       criado_em TIMESTAMP DEFAULT NOW()
     );
@@ -241,10 +242,10 @@ app.post('/api/oitivas', async (req, res) => {
   try {
     const d = req.body;
     const result = await pool.query(`
-      INSERT INTO oitivas (cnj,inquerito,pessoa,qualidade,data_oitiva,hora,local_oitiva,status,observacoes)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      INSERT INTO oitivas (cnj,inquerito,pessoa,qualidade,data_oitiva,hora,local_oitiva,status,telefone,observacoes)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [str(d.cnj), str(d.inquerito), str(d.pessoa), str(d.qualidade),
-       d.data || null, str(d.hora), str(d.local), str(d.status), str(d.obs)]
+       d.data || null, str(d.hora), str(d.local), str(d.status), str(d.telefone||''), str(d.obs)]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -257,10 +258,10 @@ app.put('/api/oitivas/:id', async (req, res) => {
     const d = req.body;
     const result = await pool.query(`
       UPDATE oitivas SET cnj=$1,inquerito=$2,pessoa=$3,qualidade=$4,
-        data_oitiva=$5,hora=$6,local_oitiva=$7,status=$8,observacoes=$9
-      WHERE id=$10 RETURNING *`,
+        data_oitiva=$5,hora=$6,local_oitiva=$7,status=$8,telefone=$9,observacoes=$10
+      WHERE id=$11 RETURNING *`,
       [str(d.cnj), str(d.inquerito), str(d.pessoa), str(d.qualidade),
-       d.data || null, str(d.hora), str(d.local), str(d.status), str(d.obs), req.params.id]
+       d.data || null, str(d.hora), str(d.local), str(d.status), str(d.telefone||''), str(d.obs), req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
