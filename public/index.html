@@ -190,12 +190,18 @@ tr:hover td{background:#EBF4FD}
     <h2 id="modal-oit-title"><i class="ti ti-calendar-plus" style="color:#534AB7"></i>Agendar oitiva</h2>
     <input type="hidden" id="oit-id">
     <div class="grid2">
-      <div class="fg"><label>Nº CNJ</label>
+      <div class="fg" id="fg-oit-cnj-select">
+        <label>Nº CNJ</label>
         <select id="oit-cnj" onchange="preencherInqOitiva()">
           <option value="">Selecione o inquérito…</option>
         </select>
       </div>
-      <div class="fg"><label>Nº Inquérito</label><input id="oit-inq" placeholder="IP 123/2024"></div>
+      <div class="fg" id="fg-oit-cnj-fixed" style="display:none">
+        <label>Nº CNJ</label>
+        <div id="oit-cnj-label" style="padding:8px 10px;background:#E6F1FB;border:1px solid #B5D4F4;border-radius:8px;font-family:monospace;font-size:12px;color:#0C447C;font-weight:700"></div>
+        <input type="hidden" id="oit-cnj-hidden">
+      </div>
+      <div class="fg"><label>Nº Inquérito</label><input id="oit-inq" placeholder="IP 123/2024" readonly style="background:#f5f5f0;color:#666"></div>
       <div class="fg"><label>Nome da pessoa</label><input id="oit-pessoa" placeholder="Nome completo"></div>
       <div class="fg"><label>Qualidade</label>
         <select id="oit-qual"><option>Vítima</option><option>Investigado</option><option>Testemunha</option><option>Informante</option></select>
@@ -505,20 +511,41 @@ function abrirNovaOitiva(cnj='', inq='') {
   document.getElementById('oit-local').value = 'Delegacia Central';
   document.getElementById('oit-status').value = 'Agendada';
   document.getElementById('oit-obs').value = '';
-  document.getElementById('modal-oit').style.display = 'flex';
-  // Pre-seleciona CNJ
-  setTimeout(() => {
-    const sel = document.getElementById('oit-cnj');
-    sel.value = cnj;
+
+  if (cnj) {
+    // Veio de um procedimento — trava o CNJ
+    document.getElementById('fg-oit-cnj-select').style.display = 'none';
+    document.getElementById('fg-oit-cnj-fixed').style.display = 'block';
+    document.getElementById('oit-cnj-label').textContent = cnj;
+    document.getElementById('oit-cnj-hidden').value = cnj;
+    document.getElementById('oit-cnj').value = '';
     document.getElementById('oit-inq').value = inq;
-  }, 80);
+    document.getElementById('oit-inq').readOnly = true;
+    document.getElementById('oit-inq').style.background = '#f5f5f0';
+  } else {
+    // Abriu direto da aba oitivas — mostra select normal
+    document.getElementById('fg-oit-cnj-select').style.display = 'block';
+    document.getElementById('fg-oit-cnj-fixed').style.display = 'none';
+    document.getElementById('oit-cnj').value = '';
+    document.getElementById('oit-inq').value = '';
+    document.getElementById('oit-inq').readOnly = false;
+    document.getElementById('oit-inq').style.background = '#fff';
+  }
+  document.getElementById('modal-oit').style.display = 'flex';
 }
 
 function editarOitiva(o) {
   document.getElementById('modal-oit-title').innerHTML = '<i class="ti ti-edit" style="color:#534AB7"></i>Editar oitiva';
   document.getElementById('oit-id').value = o.id;
-  document.getElementById('oit-cnj').value = o.cnj||'';
+  // CNJ sempre travado na edição
+  document.getElementById('fg-oit-cnj-select').style.display = 'none';
+  document.getElementById('fg-oit-cnj-fixed').style.display = 'block';
+  document.getElementById('oit-cnj-label').textContent = o.cnj||'';
+  document.getElementById('oit-cnj-hidden').value = o.cnj||'';
+  document.getElementById('oit-cnj').value = '';
   document.getElementById('oit-inq').value = o.inquerito||'';
+  document.getElementById('oit-inq').readOnly = true;
+  document.getElementById('oit-inq').style.background = '#f5f5f0';
   document.getElementById('oit-pessoa').value = o.pessoa||'';
   document.getElementById('oit-qual').value = o.qualidade||'Vítima';
   document.getElementById('oit-data').value = (o.data_oitiva||'').split('T')[0];
@@ -539,7 +566,7 @@ function preencherInqOitiva() {
 async function salvarOitiva(abrirCal=false) {
   const id = document.getElementById('oit-id').value;
   const body = {
-    cnj: document.getElementById('oit-cnj').value,
+    cnj: document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value,
     inquerito: document.getElementById('oit-inq').value,
     pessoa: document.getElementById('oit-pessoa').value,
     qualidade: document.getElementById('oit-qual').value,
