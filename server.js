@@ -5,6 +5,23 @@ const path = require('path');
 const { Pool } = require('pg');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const { google } = require('googleapis');
+
+// ── Google OAuth2 ───────────────────────────────────────
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  `${process.env.APP_URL}/auth/callback`
+);
+
+// Armazena tokens em memória (para uso single-user)
+let googleTokens = null;
+
+function getCalendarClient() {
+  if (!googleTokens) return null;
+  oauth2Client.setCredentials(googleTokens);
+  return google.calendar({ version: 'v3', auth: oauth2Client });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -383,6 +400,111 @@ app.post('/api/reset', async (req, res) => {
     console.log('⚠️ Banco de dados resetado');
     res.json({ ok: true, mensagem: 'Base de dados apagada com sucesso.' });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Google Auth ───────────────────────────────────────────
+
+// Inicia o fluxo OAuth — redireciona para o Google
+app.get('/auth/google', (req, res) => {
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/calendar.events'],
+  });
+  res.redirect(url);
+});
+
+// Callback do Google após autorização
+app.get('/auth/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    const { tokens } = await oauth2Client.getToken(code);
+    googleTokens = tokens;
+    console.log('✅ Google Calendar autorizado com sucesso!');
+    res.send(`
+      <html><body style="font-family:Arial;text-align:center;padding:3rem">
+        <h2 style="color:#185FA5">✅ Google Calendar conectado!</h2>
+        <p>Pode fechar esta aba e voltar ao sistema.</p>
+        <script>setTimeout(()=>window.close(),2000)</script>
+      </body></html>
+    `);
+  } catch (err) {
+    console.error('Erro no callback OAuth:', err.message);
+    res.send(`<html><body style="font-family:Arial;text-align:center;padding:3rem">
+      <h2 style="color:#c0392b">❌ Erro ao conectar</h2>
+      <p>${err.message}</p>
+    </body></html>`);
+  }
+});
+
+// Verifica se está conectado ao Google
+app.get('/api/google/status', (req, res) => {
+  res.json({ conectado: !!googleTokens });
+});
+
+// Desconectar Google
+app.post('/api/google/desconectar', (req, res) => {
+  googleTokens = null;
+  res.json({ ok: true });
+});
+
+// Criar evento no Google Calendar
+app.post('/api/google/evento', async (req, res) => {
+  try {
+    const calendar = getCalendarClient();
+    if (!calendar) {
+      return res.status(401).json({ error: 'Google Calendar não autorizado. Conecte primeiro.' });
+    }
+
+    const d = req.body;
+    if (!d.data) return res.status(400).json({ error: 'Data da oitiva é obrigatória.' });
+
+    const [hh, mm] = (d.hora || '09:00').split(':');
+    const ehh = String(parseInt(hh) + 1).padStart(2, '0');
+
+    const evento = {
+      summary: `Oitiva: ${d.pessoa} (${d.qualidade}) — ${d.inquerito}`,
+      location: d.local || 'Delegacia Central',
+      description: [
+        `CNJ: ${d.cnj}`,
+        `Inquérito: ${d.inquerito}`,
+        `Qualidade: ${d.qualidade}`,
+        d.telefone ? `Telefone: ${d.telefone}` : '',
+        d.obs ? `Obs: ${d.obs}` : '',
+      ].filter(Boolean).join('\n'),
+      start: {
+        dateTime: `${d.data}T${hh}:${mm}:00`,
+        timeZone: 'America/Sao_Paulo',
+      },
+      end: {
+        dateTime: `${d.data}T${ehh}:${mm}:00`,
+        timeZone: 'America/Sao_Paulo',
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'email', minutes: 24 * 60 }, // 1 dia antes
+          { method: 'popup', minutes: 60 },       // 1 hora antes
+        ],
+      },
+    };
+
+    const result = await calendar.events.insert({
+      calendarId: 'primary',
+      resource: evento,
+    });
+
+    console.log(`📅 Evento criado no Calendar: ${result.data.htmlLink}`);
+    res.json({ ok: true, link: result.data.htmlLink, eventId: result.data.id });
+
+  } catch (err) {
+    console.error('Erro ao criar evento:', err.message);
+    if (err.code === 401) {
+      googleTokens = null;
+      return res.status(401).json({ error: 'Token expirado. Reconecte o Google Calendar.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
