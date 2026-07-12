@@ -135,7 +135,9 @@ async function initDB() {
     );
   `);
 
-
+  // Tabela de pessoas (cadastro completo)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pessoas (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
       rg TEXT,
