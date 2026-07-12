@@ -595,23 +595,24 @@ function whatsappURL(telefone, mensagem) {
   return `https://wa.me/${telBR}?text=${encodeURIComponent(mensagem)}`;
 }
 
-function gerarMensagemOitiva({ pessoa, qualidade, inquerito, cnj, data, hora, local }) {
-  return `Olá, *${pessoa}*! 👋
+function gerarMensagemOitiva({ pessoa, qualidade, inquerito, cnj, data, hora, local, bo }) {
+  const nomeUpper = (pessoa||'').toUpperCase();
+  return `*INTIMAÇÃO*
 
-Você está sendo convocado(a) para prestar declarações na *Delegacia de Polícia*.
+Ao Sr(a). *${nomeUpper}*
 
-📋 *Dados da oitiva:*
-• Inquérito: *${inquerito}*
-• Qualidade: *${qualidade}*
-• Data: *${data}*
-• Hora: *${hora}*
-• Local: *${local}*
+Por determinação do Dr. Delegado *Horácio Martins de O. Campos*, o Sr.(a) está intimado(a) a comparecer nesta delegacia do *4° DP de Taubaté* (Avenida JK 260, ao lado da Delegacia de Plantão).
 
-Por favor, compareça no horário indicado com documento de identificação com foto (RG ou CNH).
+📅 *Data:* ${data||'___/___/______'}
+🕐 *Hora:* ${hora||'______'}
 
-Em caso de impossibilidade de comparecimento, entre em contato com antecedência.
+Procurar escrivão *Fabio* do 4° DP para maiores informações.
 
-_Escrivania Criminal — 4ª Delegacia de Polícia_`;
+📋 *Nº CNJ:* ${cnj||'___'}
+📋 *Nº IPE:* ${inquerito||'___'}
+📋 *Nº BO:* ${bo||'___'}
+
+_Escrivania Criminal — 4° DP de Taubaté_`;
 }
 
 function gcalURL(o) {
@@ -746,6 +747,8 @@ async function salvarOitiva(abrirCal=false, abrirWhatsApp=false) {
           return;
         }
         const dataFmt = body.data ? new Date(body.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+        // Busca BO do inquérito
+        const inqData = inqueritos.find(r => r.cnj === body.cnj) || {};
         const msg = gerarMensagemOitiva({
           pessoa: body.pessoa,
           qualidade: body.qualidade || body.tipo_envolvimento,
@@ -754,6 +757,7 @@ async function salvarOitiva(abrirCal=false, abrirWhatsApp=false) {
           data: dataFmt,
           hora: body.hora,
           local: body.local,
+          bo: inqData.bo || '',
         });
         toast('✅ Oitiva salva! Abrindo WhatsApp…');
         setTimeout(() => window.open(whatsappURL(tel, msg), '_blank'), 400);
