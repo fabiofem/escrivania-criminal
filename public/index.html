@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.8.0</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.8.2</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -197,17 +197,22 @@ tr:hover td{background:#EBF4FD}
     <input type="hidden" id="oit-salvo" value="0">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
 
-      <!-- CNJ -->
+      <!-- CNJ com busca -->
       <div class="fg" id="fg-oit-cnj-select" style="grid-column:1/-1">
         <label>Nº CNJ *</label>
-        <select id="oit-cnj" onchange="preencherInqOitiva()" style="font-family:monospace">
-          <option value="">Selecione o inquérito…</option>
-        </select>
+        <div style="position:relative">
+          <input id="oit-cnj-busca" placeholder="Digite o CNJ ou número do inquérito para buscar…"
+            style="width:100%;padding:8px 10px;border:1px solid rgba(0,0,0,.2);border-radius:8px;font-size:13px;font-family:monospace;outline:none"
+            oninput="filtrarCNJ(this.value)" onkeydown="cnjKeyDown(event)" autocomplete="off">
+          <div id="oit-cnj-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid rgba(0,0,0,.15);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:500;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+        </div>
+        <input type="hidden" id="oit-cnj">
+        <input type="hidden" id="oit-cnj-hidden">
       </div>
       <div class="fg" id="fg-oit-cnj-fixed" style="display:none;grid-column:1/-1">
         <label>Nº CNJ</label>
         <div id="oit-cnj-label" style="padding:8px 10px;background:#E6F1FB;border:1px solid #B5D4F4;border-radius:8px;font-family:monospace;font-size:11px;color:#0C447C;font-weight:700;word-break:break-all"></div>
-        <input type="hidden" id="oit-cnj-hidden">
+        <input type="hidden" id="oit-cnj-hidden2">
       </div>
 
       <!-- Inquérito e BO -->
@@ -421,7 +426,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.8.2';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -983,6 +988,12 @@ function abrirNovaOitiva(cnj='', inq='') {
   document.getElementById('oit-id').value = '';
   document.getElementById('oit-salvo').value = '0';
   document.getElementById('alerta-whatsapp').style.display = 'none';
+  const buscaEl = document.getElementById('oit-cnj-busca');
+  if(buscaEl) buscaEl.value = '';
+  document.getElementById('oit-cnj').value = '';
+  document.getElementById('oit-cnj-hidden').value = '';
+  const ddEl = document.getElementById('oit-cnj-dropdown');
+  if(ddEl) ddEl.style.display = 'none';
   document.getElementById('oit-pessoa').value = '';
   document.getElementById('oit-qual').value = 'Vítima';
   document.getElementById('oit-tel').value = '';
@@ -1040,6 +1051,84 @@ function editarOitiva(o) {
   document.getElementById('modal-oit').style.display = 'flex';
 }
 
+let cnjDropdownIdx = -1;
+
+function filtrarCNJ(q) {
+  const dropdown = document.getElementById('oit-cnj-dropdown');
+  // Limpa seleção anterior
+  document.getElementById('oit-cnj').value = '';
+  document.getElementById('oit-inq').value = '';
+  const boEl = document.getElementById('oit-bo');
+  if(boEl) boEl.value = '';
+  cnjDropdownIdx = -1;
+
+  if (!q || q.length < 2) { dropdown.style.display = 'none'; return; }
+
+  const q2 = q.toLowerCase();
+  const matches = inqueritos.filter(r =>
+    (r.cnj && r.cnj.toLowerCase().includes(q2)) ||
+    (r.inquerito && r.inquerito.toLowerCase().includes(q2)) ||
+    (r.bo && r.bo.toLowerCase().includes(q2)) ||
+    (r.natureza && r.natureza.toLowerCase().includes(q2))
+  ).slice(0, 15);
+
+  if (!matches.length) {
+    dropdown.innerHTML = '<div style="padding:10px 12px;color:#aaa;font-size:12px">Nenhum inquérito encontrado</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  dropdown.innerHTML = matches.map((r, i) => `
+    <div onclick="selecionarCNJ('${r.cnj.replace(/'/g,"\'")}','${(r.inquerito||'').replace(/'/g,"\'")}','${(r.bo||'').replace(/'/g,"\'")}','${(r.natureza||'').replace(/'/g,"\'")}')"
+      data-idx="${i}"
+      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,.05);transition:background .1s"
+      onmouseover="this.style.background='#E6F1FB'"
+      onmouseout="this.style.background='transparent'">
+      <div style="font-family:monospace;font-size:11px;color:#0C447C;font-weight:700">${r.cnj}</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">${r.inquerito||''} ${r.bo?'· '+r.bo:''} ${r.natureza?'· '+r.natureza.substring(0,40):''}...</div>
+    </div>`).join('');
+  dropdown.style.display = 'block';
+}
+
+function selecionarCNJ(cnj, inq, bo, natureza) {
+  document.getElementById('oit-cnj-busca').value = cnj;
+  document.getElementById('oit-cnj').value = cnj;
+  document.getElementById('oit-cnj-hidden').value = cnj;
+  document.getElementById('oit-inq').value = inq;
+  const boEl = document.getElementById('oit-bo');
+  if(boEl) boEl.value = bo;
+  document.getElementById('oit-cnj-dropdown').style.display = 'none';
+  cnjDropdownIdx = -1;
+}
+
+function cnjKeyDown(e) {
+  const dropdown = document.getElementById('oit-cnj-dropdown');
+  const items = dropdown.querySelectorAll('[data-idx]');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    cnjDropdownIdx = Math.min(cnjDropdownIdx + 1, items.length - 1);
+    items.forEach((el,i) => el.style.background = i === cnjDropdownIdx ? '#E6F1FB' : 'transparent');
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    cnjDropdownIdx = Math.max(cnjDropdownIdx - 1, 0);
+    items.forEach((el,i) => el.style.background = i === cnjDropdownIdx ? '#E6F1FB' : 'transparent');
+  } else if (e.key === 'Enter' && cnjDropdownIdx >= 0) {
+    e.preventDefault();
+    items[cnjDropdownIdx].click();
+  } else if (e.key === 'Escape') {
+    dropdown.style.display = 'none';
+  }
+}
+
+// Fecha dropdown ao clicar fora
+document.addEventListener('click', e => {
+  if (!e.target.closest('#fg-oit-cnj-select')) {
+    const d = document.getElementById('oit-cnj-dropdown');
+    if(d) d.style.display = 'none';
+  }
+});
+
 function preencherInqOitiva() {
   const sel = document.getElementById('oit-cnj');
   const cnj = sel.value;
@@ -1051,7 +1140,7 @@ function preencherInqOitiva() {
 async function salvarOitiva(abrirCal=false, abrirWhatsApp=false) {
   const id = document.getElementById('oit-id').value;
   const body = {
-    cnj: document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value,
+    cnj: document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value || document.getElementById('oit-cnj-busca').value.trim(),
     inquerito: document.getElementById('oit-inq').value,
     pessoa: document.getElementById('oit-pessoa').value,
     qualidade: document.getElementById('oit-qual').value,
