@@ -52,7 +52,7 @@ tr:hover td{background:#EBF4FD}
 .ibtn.del:hover{background:#FCEBEB;color:#a32d2d;border-color:#e24b4a}
 .ibtn.cal:hover{background:#E6F1FB;color:#185FA5}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:1rem}
-.modal{background:#fff;border-radius:14px;padding:1.5rem;width:100%;max-width:700px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal{background:#fff;border-radius:14px;padding:1.2rem 1.4rem;width:100%;max-width:780px;max-height:96vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
 .modal h2{font-size:16px;font-weight:700;margin-bottom:1.2rem;display:flex;align-items:center;gap:8px;color:#0C447C}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .fg{display:flex;flex-direction:column;gap:4px}
@@ -92,6 +92,9 @@ tr:hover td{background:#EBF4FD}
       <label class="btn" style="cursor:pointer"><i class="ti ti-upload"></i>Importar Excel
         <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcel(this)">
       </label>
+      <button id="btn-google-connect" class="btn" style="background:#fff;color:#444;border:1px solid #ddd" onclick="conectarGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:16px;height:16px"> <span id="google-status-txt">Conectar Calendar</span>
+      </button>
       <button class="btn" style="background:#7b1e1e;color:#fff;border-color:#7b1e1e" onclick="abrirResetModal()"><i class="ti ti-trash"></i>Apagar Base</button>
     </div>
   </div>
@@ -107,6 +110,7 @@ tr:hover td{background:#EBF4FD}
   <div class="tabs">
     <button class="tab active" id="tab-inq" onclick="setTab('inq')"><i class="ti ti-files"></i>Inquéritos Policiais</button>
     <button class="tab" id="tab-oit" onclick="setTab('oit')"><i class="ti ti-calendar-event"></i>Agenda de Oitivas</button>
+    <button class="tab" id="tab-pes" onclick="setTab('pes')"><i class="ti ti-users"></i>Pessoas</button>
   </div>
 
   <!-- INQUÉRITOS -->
@@ -145,12 +149,71 @@ tr:hover td{background:#EBF4FD}
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
-            <th>Nº CNJ</th><th>Inquérito</th><th>Pessoa</th><th>Qualidade</th>
+            <th>Nº CNJ</th><th>Inquérito</th><th>Pessoa</th><th>Qualidade</th><th>Telefone</th>
             <th>Data</th><th>Hora</th><th>Local</th><th>Status</th><th>Observações</th><th>Ações</th>
           </tr></thead>
-          <tbody id="tbody-oit"><tr><td colspan="10"><div class="loading">Carregando…</div></td></tr></tbody>
+          <tbody id="tbody-oit"><tr><td colspan="11"><div class="loading">Carregando…</div></td></tr></tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- PESSOAS -->
+<div id="pane-pes" style="display:none">
+  <div class="toolbar">
+    <button class="btn primary" onclick="abrirNovaPessoa()"><i class="ti ti-user-plus"></i>Nova pessoa</button>
+    <div class="search"><i class="ti ti-search"></i><input id="busca-pes" placeholder="Buscar por nome, CPF, RG…" oninput="carregarPessoas()"></div>
+    <span id="count-pes" style="font-size:12px;color:#aaa;margin-left:auto"></span>
+  </div>
+  <div class="table-wrap">
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>Nome</th><th>RG</th><th>CPF</th><th>Nascimento</th>
+          <th>Telefones</th><th>Endereço</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="tbody-pes"><tr><td colspan="7"><div class="loading">Carregando…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PESSOA -->
+<div class="overlay" id="modal-pes" style="display:none" onclick="if(event.target===this)fecharModal('modal-pes')">
+  <div class="modal" style="max-width:860px">
+    <h2 id="modal-pes-title"><i class="ti ti-user-plus" style="color:#534AB7"></i>Nova pessoa</h2>
+    <input type="hidden" id="pes-id">
+
+    <!-- Dados pessoais -->
+    <div style="font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Dados Pessoais</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="fg"><label>Nome completo *</label><input id="pes-nome" placeholder="Nome completo"></div>
+      <div class="fg"><label>RG</label><input id="pes-rg" placeholder="00.000.000-0"></div>
+      <div class="fg"><label>CPF</label><input id="pes-cpf" placeholder="000.000.000-00"></div>
+      <div class="fg"><label>Data de Nascimento</label><input type="date" id="pes-nasc"></div>
+    </div>
+
+    <!-- Telefones -->
+    <div style="font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+      <span>Telefones</span>
+      <button class="btn" style="padding:4px 10px;font-size:12px" onclick="addTelefone()"><i class="ti ti-plus"></i>Adicionar</button>
+    </div>
+    <div id="lista-telefones" style="margin-bottom:14px"></div>
+
+    <!-- Endereços -->
+    <div style="font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+      <span>Endereços</span>
+      <button class="btn" style="padding:4px 10px;font-size:12px" onclick="addEndereco()"><i class="ti ti-plus"></i>Adicionar</button>
+    </div>
+    <div id="lista-enderecos" style="margin-bottom:14px"></div>
+
+    <!-- Observações -->
+    <div class="fg" style="margin-bottom:4px"><label>Observações</label><textarea id="pes-obs" placeholder="Informações adicionais…" style="min-height:50px"></textarea></div>
+
+    <div class="mfoot">
+      <button class="btn" onclick="fecharModal('modal-pes')">Cancelar</button>
+      <button class="btn primary" onclick="salvarPessoa()"><i class="ti ti-check"></i>Salvar pessoa</button>
     </div>
   </div>
 </div>
@@ -189,29 +252,74 @@ tr:hover td{background:#EBF4FD}
   <div class="modal">
     <h2 id="modal-oit-title"><i class="ti ti-calendar-plus" style="color:#534AB7"></i>Agendar oitiva</h2>
     <input type="hidden" id="oit-id">
-    <div class="grid2">
-      <div class="fg"><label>Nº CNJ</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+
+      <!-- Linha 1: CNJ (full), Inquérito -->
+      <div class="fg" id="fg-oit-cnj-select" style="grid-column:1/3">
+        <label>Nº CNJ</label>
         <select id="oit-cnj" onchange="preencherInqOitiva()">
           <option value="">Selecione o inquérito…</option>
         </select>
       </div>
-      <div class="fg"><label>Nº Inquérito</label><input id="oit-inq" placeholder="IP 123/2024"></div>
-      <div class="fg"><label>Nome da pessoa</label><input id="oit-pessoa" placeholder="Nome completo"></div>
-      <div class="fg"><label>Qualidade</label>
-        <select id="oit-qual"><option>Vítima</option><option>Investigado</option><option>Testemunha</option><option>Informante</option></select>
+      <div class="fg" id="fg-oit-cnj-fixed" style="display:none;grid-column:1/3">
+        <label>Nº CNJ</label>
+        <div id="oit-cnj-label" style="padding:8px 10px;background:#E6F1FB;border:1px solid #B5D4F4;border-radius:8px;font-family:monospace;font-size:11px;color:#0C447C;font-weight:700;word-break:break-all"></div>
+        <input type="hidden" id="oit-cnj-hidden">
       </div>
-      <div class="fg"><label>Data</label><input type="date" id="oit-data"></div>
-      <div class="fg"><label>Hora</label><input type="time" id="oit-hora" value="09:00"></div>
-      <div class="fg full"><label>Local</label><input id="oit-local" placeholder="Delegacia, sala, endereço…" value="Delegacia Central"></div>
-      <div class="fg"><label>Status</label>
+      <div class="fg">
+        <label>Nº Inquérito</label>
+        <input id="oit-inq" placeholder="IP 123/2024">
+      </div>
+
+      <!-- Linha 2: Pessoa, Qualidade, Telefone -->
+      <div class="fg">
+        <label>Nome da pessoa</label>
+        <input id="oit-pessoa" placeholder="Nome completo">
+      </div>
+      <div class="fg">
+        <label>Qualidade</label>
+        <select id="oit-qual">
+          <option>Vítima</option><option>Autor</option><option>Indiciado</option>
+          <option>Investigado</option><option>Declarante</option><option>Parte</option>
+          <option>Menor de Idade</option><option>Adolescente Infra</option>
+          <option>Tutor Responsável</option><option>Representante</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Telefone</label>
+        <input id="oit-tel" placeholder="(11) 99999-9999">
+      </div>
+
+      <!-- Linha 3: Data, Hora, Status -->
+      <div class="fg">
+        <label>Data</label>
+        <input type="date" id="oit-data">
+      </div>
+      <div class="fg">
+        <label>Hora</label>
+        <input type="time" id="oit-hora" value="09:00">
+      </div>
+      <div class="fg">
+        <label>Status</label>
         <select id="oit-status"><option>Agendada</option><option>Realizada</option><option>Cancelada</option><option>Remarcada</option></select>
       </div>
-      <div class="fg full"><label>Observações</label><textarea id="oit-obs" placeholder="Acompanhado de advogado, necessita intérprete…"></textarea></div>
+
+      <!-- Linha 4: Local (full) -->
+      <div class="fg" style="grid-column:1/-1">
+        <label>Local</label>
+        <input id="oit-local" placeholder="Delegacia, sala, endereço…" value="Delegacia Central">
+      </div>
+
+      <!-- Linha 5: Observações (full) -->
+      <div class="fg" style="grid-column:1/-1">
+        <label>Observações</label>
+        <textarea id="oit-obs" placeholder="Acompanhado de advogado, necessita intérprete…" style="min-height:60px"></textarea>
+      </div>
     </div>
     <div class="mfoot">
       <button class="btn" onclick="fecharModal('modal-oit')">Cancelar</button>
-      <button class="btn gcal" id="btn-gcal" style="display:none" onclick="abrirGCal()"><i class="ti ti-brand-google"></i>Abrir no Google Calendar</button>
-      <button class="btn primary" onclick="salvarOitiva()"><i class="ti ti-check"></i>Salvar oitiva</button>
+      <button class="btn primary" onclick="salvarOitiva(false)"><i class="ti ti-check"></i>Salvar</button>
+      <button class="btn gcal" onclick="salvarOitiva(true)"><i class="ti ti-brand-google"></i>Salvar + Calendar</button>
     </div>
   </div>
 </div>
@@ -261,9 +369,12 @@ function setTab(t) {
   tabAtual = t;
   document.getElementById('pane-inq').style.display = t==='inq'?'block':'none';
   document.getElementById('pane-oit').style.display = t==='oit'?'block':'none';
+  document.getElementById('pane-pes').style.display = t==='pes'?'block':'none';
   document.getElementById('tab-inq').className = 'tab' + (t==='inq'?' active':'');
   document.getElementById('tab-oit').className = 'tab' + (t==='oit'?' active':'');
+  document.getElementById('tab-pes').className = 'tab' + (t==='pes'?' active':'');
   if (t==='oit') carregarOitivas();
+  if (t==='pes') carregarPessoas();
 }
 function pill(txt, cls) { return `<span class="pill ${cls}">${txt}</span>`; }
 function fmt(v) { return v||'—'; }
@@ -303,12 +414,15 @@ async function carregarInqueritos() {
   const q = document.getElementById('busca').value.trim();
   const url = '/api/inqueritos' + (q ? `?search=${encodeURIComponent(q)}` : '');
   try {
-  const r = await fetch(url);
-  if(!r.ok) throw new Error(await r.text());
-  inqueritos = await r.json();
-  renderInqueritos();
-  popularSelectCNJ();
-  carregarStats();
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Erro ' + r.status);
+    inqueritos = await r.json();
+    renderInqueritos();
+    popularSelectCNJ();
+    carregarStats();
+  } catch(e) {
+    toast('❌ Erro ao carregar inquéritos: ' + e.message, true);
+  }
 }
 
 function renderInqueritos() {
@@ -406,6 +520,7 @@ async function salvarInq() {
     if (r.ok) {
       fecharModal('modal-inq');
       carregarInqueritos();
+verificarStatusGoogle();
       toast(id ? '✅ Procedimento atualizado!' : '✅ Procedimento criado!');
     } else {
       toast('❌ Erro ao salvar: ' + (d.error || r.status), true);
@@ -451,7 +566,7 @@ function renderOitivas() {
   const tb = document.getElementById('tbody-oit');
   document.getElementById('count-oit').textContent = `${oitivas.length} oitiva(s)`;
   if (!oitivas.length) {
-    tb.innerHTML = `<tr><td colspan="10"><div class="empty"><i class="ti ti-calendar-off"></i><h3>Nenhuma oitiva agendada</h3></div></td></tr>`;
+    tb.innerHTML = `<tr><td colspan="11"><div class="empty"><i class="ti ti-calendar-off"></i><h3>Nenhuma oitiva agendada</h3></div></td></tr>`;
     return;
   }
   tb.innerHTML = oitivas.map(o => {
@@ -462,6 +577,7 @@ function renderOitivas() {
       <td>${o.inquerito||'—'}</td>
       <td><strong>${o.pessoa||'—'}</strong></td>
       <td>${pill(o.qualidade,qCls)}</td>
+      <td>${o.telefone||'—'}</td>
       <td>${fmtData(o.data_oitiva)}</td>
       <td>${o.hora||'—'}</td>
       <td>${o.local_oitiva||'—'}</td>
@@ -485,38 +601,64 @@ function gcalURL(o) {
   const s=`${d}T${hh}${mm}00`;
   const eh=String(parseInt(hh)+1).padStart(2,'0');
   const e=`${d}T${eh}${mm}00`;
+  const tel = o.telefone ? 'Telefone: '+o.telefone+'\n' : '';
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Oitiva: '+(o.pessoa||'')+' ('+(o.qualidade||'')+') - '+(o.inquerito||''))}&dates=${s}/${e}&location=${encodeURIComponent(o.local_oitiva||o.local||'')}&details=${encodeURIComponent('CNJ: '+(o.cnj||'')+'\nInquérito: '+(o.inquerito||'')+'\nObs: '+(o.observacoes||o.obs||''))}`;
 }
 
 function abrirNovaOitiva(cnj='', inq='') {
   document.getElementById('modal-oit-title').innerHTML = '<i class="ti ti-calendar-plus" style="color:#534AB7"></i>Agendar oitiva';
   document.getElementById('oit-id').value = '';
-  document.getElementById('oit-cnj').value = cnj;
-  document.getElementById('oit-inq').value = inq;
   document.getElementById('oit-pessoa').value = '';
   document.getElementById('oit-qual').value = 'Vítima';
+  document.getElementById('oit-tel').value = '';
   document.getElementById('oit-data').value = '';
   document.getElementById('oit-hora').value = '09:00';
   document.getElementById('oit-local').value = 'Delegacia Central';
   document.getElementById('oit-status').value = 'Agendada';
   document.getElementById('oit-obs').value = '';
-  document.getElementById('btn-gcal').style.display = 'none';
+
+  if (cnj) {
+    // Veio de um procedimento — trava o CNJ
+    document.getElementById('fg-oit-cnj-select').style.display = 'none';
+    document.getElementById('fg-oit-cnj-fixed').style.display = 'block';
+    document.getElementById('oit-cnj-label').textContent = cnj;
+    document.getElementById('oit-cnj-hidden').value = cnj;
+    document.getElementById('oit-cnj').value = '';
+    document.getElementById('oit-inq').value = inq;
+    document.getElementById('oit-inq').readOnly = true;
+    document.getElementById('oit-inq').style.background = '#f5f5f0';
+  } else {
+    // Abriu direto da aba oitivas — mostra select normal
+    document.getElementById('fg-oit-cnj-select').style.display = 'block';
+    document.getElementById('fg-oit-cnj-fixed').style.display = 'none';
+    document.getElementById('oit-cnj').value = '';
+    document.getElementById('oit-inq').value = '';
+    document.getElementById('oit-inq').readOnly = false;
+    document.getElementById('oit-inq').style.background = '#fff';
+  }
   document.getElementById('modal-oit').style.display = 'flex';
 }
 
 function editarOitiva(o) {
   document.getElementById('modal-oit-title').innerHTML = '<i class="ti ti-edit" style="color:#534AB7"></i>Editar oitiva';
   document.getElementById('oit-id').value = o.id;
-  document.getElementById('oit-cnj').value = o.cnj||'';
+  // CNJ sempre travado na edição
+  document.getElementById('fg-oit-cnj-select').style.display = 'none';
+  document.getElementById('fg-oit-cnj-fixed').style.display = 'block';
+  document.getElementById('oit-cnj-label').textContent = o.cnj||'';
+  document.getElementById('oit-cnj-hidden').value = o.cnj||'';
+  document.getElementById('oit-cnj').value = '';
   document.getElementById('oit-inq').value = o.inquerito||'';
+  document.getElementById('oit-inq').readOnly = true;
+  document.getElementById('oit-inq').style.background = '#f5f5f0';
   document.getElementById('oit-pessoa').value = o.pessoa||'';
   document.getElementById('oit-qual').value = o.qualidade||'Vítima';
   document.getElementById('oit-data').value = (o.data_oitiva||'').split('T')[0];
   document.getElementById('oit-hora').value = o.hora||'09:00';
   document.getElementById('oit-local').value = o.local_oitiva||'';
   document.getElementById('oit-status').value = o.status||'Agendada';
+  document.getElementById('oit-tel').value = o.telefone||'';
   document.getElementById('oit-obs').value = o.observacoes||'';
-  document.getElementById('btn-gcal').style.display = o.data_oitiva ? 'flex' : 'none';
   document.getElementById('modal-oit').style.display = 'flex';
 }
 
@@ -526,33 +668,22 @@ function preencherInqOitiva() {
   document.getElementById('oit-inq').value = opt ? (opt.dataset.inq||'') : '';
 }
 
-function abrirGCal() {
-  const o = {
-    cnj: document.getElementById('oit-cnj').value,
-    inquerito: document.getElementById('oit-inq').value,
-    pessoa: document.getElementById('oit-pessoa').value,
-    qualidade: document.getElementById('oit-qual').value,
-    data_oitiva: document.getElementById('oit-data').value,
-    hora: document.getElementById('oit-hora').value,
-    local_oitiva: document.getElementById('oit-local').value,
-    observacoes: document.getElementById('oit-obs').value,
-  };
-  window.open(gcalURL(o), '_blank');
-}
-
-async function salvarOitiva() {
+async function salvarOitiva(abrirCal=false) {
   const id = document.getElementById('oit-id').value;
   const body = {
-    cnj: document.getElementById('oit-cnj').value,
+    cnj: document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value,
     inquerito: document.getElementById('oit-inq').value,
     pessoa: document.getElementById('oit-pessoa').value,
     qualidade: document.getElementById('oit-qual').value,
+    telefone: document.getElementById('oit-tel').value,
     data: document.getElementById('oit-data').value,
     hora: document.getElementById('oit-hora').value,
     local: document.getElementById('oit-local').value,
     status: document.getElementById('oit-status').value,
     obs: document.getElementById('oit-obs').value,
   };
+  if (!body.cnj) { toast('⚠️ Selecione o CNJ do inquérito.', false, true); return; }
+  if (!body.pessoa) { toast('⚠️ Informe o nome da pessoa.', false, true); return; }
   const url = id ? `/api/oitivas/${id}` : '/api/oitivas';
   const method = id ? 'PUT' : 'POST';
   try {
@@ -562,7 +693,37 @@ async function salvarOitiva() {
       fecharModal('modal-oit');
       carregarOitivas();
       carregarStats();
-      toast('✅ Oitiva salva!');
+
+      if (abrirCal && body.data) {
+        // Tenta criar evento diretamente via API (se conectado)
+        if (googleConectado) {
+          try {
+            const cr = await fetch('/api/google/evento', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify(body)
+            });
+            const cd = await cr.json();
+            if (cr.ok) {
+              toast('✅ Oitiva salva e evento criado no Google Calendar!');
+              return;
+            } else if (cr.status === 401) {
+              googleConectado = false;
+              atualizarBotaoGoogle();
+              toast('⚠️ Oitiva salva! Calendar desconectado — reconecte e tente novamente.', false, true);
+              return;
+            }
+          } catch(e) {}
+        }
+        // Fallback: abre link do calendar no navegador
+        const obj = { cnj:body.cnj, inquerito:body.inquerito, pessoa:body.pessoa,
+          qualidade:body.qualidade, telefone:body.telefone, data_oitiva:body.data,
+          hora:body.hora, local_oitiva:body.local, observacoes:body.obs };
+        toast('✅ Oitiva salva! Abrindo Google Calendar…');
+        setTimeout(() => window.open(gcalURL(obj), '_blank'), 400);
+      } else {
+        toast('✅ Oitiva salva!');
+      }
     } else {
       toast('❌ Erro ao salvar oitiva: ' + (d.error || r.status), true);
     }
@@ -733,6 +894,246 @@ async function confirmarReset() {
     document.getElementById('reset-senha').value = '';
     document.getElementById('reset-senha').focus();
   }
+}
+
+// ════════════════════════════════════════════════════════
+// PESSOAS
+// ════════════════════════════════════════════════════════
+let pessoas = [];
+
+async function carregarPessoas() {
+  const q = document.getElementById('busca-pes').value.trim();
+  const url = '/api/pessoas' + (q ? `?search=${encodeURIComponent(q)}` : '');
+  try {
+    const r = await fetch(url);
+    pessoas = await r.json();
+    renderPessoas();
+  } catch(e) { toast('❌ Erro ao carregar pessoas: ' + e.message, true); }
+}
+
+function renderPessoas() {
+  const tb = document.getElementById('tbody-pes');
+  document.getElementById('count-pes').textContent = `${pessoas.length} pessoa(s)`;
+  if (!pessoas.length) {
+    tb.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-users-off"></i><h3>Nenhuma pessoa cadastrada</h3></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = pessoas.map(p => {
+    const tels = (p.telefones||[]).map(t => t.telefone).join(', ') || '—';
+    const end = (p.enderecos||[])[0];
+    const endStr = end ? `${end.rua}${end.numero?', '+end.numero:''} — ${end.cidade}` : '—';
+    const nasc = p.data_nascimento ? new Date(p.data_nascimento+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    return `<tr>
+      <td><strong>${p.nome}</strong></td>
+      <td>${p.rg||'—'}</td>
+      <td>${p.cpf||'—'}</td>
+      <td>${nasc}</td>
+      <td style="font-size:12px">${tels}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${endStr}</td>
+      <td>
+        <div class="acts">
+          <button class="ibtn" onclick='editarPessoa(${JSON.stringify(p).replace(/'/g,"&#39;")})' title="Editar"><i class="ti ti-edit"></i></button>
+          <button class="ibtn del" onclick="removerPessoa(${p.id})" title="Remover"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+let telefoneCount = 0;
+let enderecoCount = 0;
+
+function addTelefone(tel='', tipo='Celular') {
+  const id = ++telefoneCount;
+  const div = document.createElement('div');
+  div.id = `tel-row-${id}`;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 130px 36px;gap:8px;margin-bottom:8px;align-items:end';
+  div.innerHTML = `
+    <div class="fg"><label>Telefone</label><input class="tel-num" placeholder="(11) 99999-9999" value="${tel}"></div>
+    <div class="fg"><label>Tipo</label><select class="tel-tipo">
+      <option${tipo==='Celular'?' selected':''}>Celular</option>
+      <option${tipo==='Residencial'?' selected':''}>Residencial</option>
+      <option${tipo==='Comercial'?' selected':''}>Comercial</option>
+      <option${tipo==='WhatsApp'?' selected':''}>WhatsApp</option>
+    </select></div>
+    <button class="ibtn del" style="margin-bottom:1px" onclick="document.getElementById('tel-row-${id}').remove()"><i class="ti ti-trash"></i></button>`;
+  document.getElementById('lista-telefones').appendChild(div);
+}
+
+function addEndereco(e={}) {
+  const id = ++enderecoCount;
+  const div = document.createElement('div');
+  div.id = `end-row-${id}`;
+  div.style.cssText = 'background:#f9f9f7;border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:12px;margin-bottom:10px;position:relative';
+  div.innerHTML = `
+    <button class="ibtn del" style="position:absolute;top:8px;right:8px" onclick="document.getElementById('end-row-${id}').remove()"><i class="ti ti-trash"></i></button>
+    <div style="display:grid;grid-template-columns:120px 2fr 80px 1fr;gap:8px;margin-bottom:8px">
+      <div class="fg"><label>CEP</label><input class="end-cep" placeholder="00000-000" value="${e.cep||''}" onblur="buscarCEP(this, 'end-row-${id}')"></div>
+      <div class="fg"><label>Rua</label><input class="end-rua" placeholder="Rua, Avenida…" value="${e.rua||''}"></div>
+      <div class="fg"><label>Número</label><input class="end-num" placeholder="123" value="${e.numero||''}"></div>
+      <div class="fg"><label>Complemento</label><input class="end-comp" placeholder="Apto, Bloco…" value="${e.complemento||''}"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 130px;gap:8px">
+      <div class="fg"><label>Bairro</label><input class="end-bairro" placeholder="Bairro" value="${e.bairro||''}"></div>
+      <div class="fg"><label>Cidade</label><input class="end-cidade" placeholder="Cidade" value="${e.cidade||''}"></div>
+      <div class="fg"><label>Tipo</label><select class="end-tipo">
+        <option${(e.tipo||'Residencial')==='Residencial'?' selected':''}>Residencial</option>
+        <option${e.tipo==='Comercial'?' selected':''}>Comercial</option>
+        <option${e.tipo==='Outro'?' selected':''}>Outro</option>
+      </select></div>
+    </div>`;
+  document.getElementById('lista-enderecos').appendChild(div);
+}
+
+async function buscarCEP(input, rowId) {
+  const cep = input.value.replace(/\D/g,'');
+  if (cep.length !== 8) return;
+  try {
+    const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const d = await r.json();
+    if (d.erro) return;
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    row.querySelector('.end-rua').value = d.logradouro||'';
+    row.querySelector('.end-bairro').value = d.bairro||'';
+    row.querySelector('.end-cidade').value = d.localidade||'';
+  } catch(e) {}
+}
+
+function abrirNovaPessoa() {
+  document.getElementById('modal-pes-title').innerHTML = '<i class="ti ti-user-plus" style="color:#534AB7"></i>Nova pessoa';
+  document.getElementById('pes-id').value = '';
+  document.getElementById('pes-nome').value = '';
+  document.getElementById('pes-rg').value = '';
+  document.getElementById('pes-cpf').value = '';
+  document.getElementById('pes-nasc').value = '';
+  document.getElementById('pes-obs').value = '';
+  document.getElementById('lista-telefones').innerHTML = '';
+  document.getElementById('lista-enderecos').innerHTML = '';
+  telefoneCount = 0; enderecoCount = 0;
+  addTelefone(); // começa com um telefone
+  document.getElementById('modal-pes').style.display = 'flex';
+}
+
+function editarPessoa(p) {
+  document.getElementById('modal-pes-title').innerHTML = '<i class="ti ti-edit" style="color:#534AB7"></i>Editar pessoa';
+  document.getElementById('pes-id').value = p.id;
+  document.getElementById('pes-nome').value = p.nome||'';
+  document.getElementById('pes-rg').value = p.rg||'';
+  document.getElementById('pes-cpf').value = p.cpf||'';
+  document.getElementById('pes-nasc').value = (p.data_nascimento||'').split('T')[0];
+  document.getElementById('pes-obs').value = p.observacoes||'';
+  document.getElementById('lista-telefones').innerHTML = '';
+  document.getElementById('lista-enderecos').innerHTML = '';
+  telefoneCount = 0; enderecoCount = 0;
+  if (p.telefones && p.telefones.length) p.telefones.forEach(t => addTelefone(t.telefone, t.tipo));
+  else addTelefone();
+  if (p.enderecos && p.enderecos.length) p.enderecos.forEach(e => addEndereco(e));
+  document.getElementById('modal-pes').style.display = 'flex';
+}
+
+function coletarPessoa() {
+  const telefones = [...document.querySelectorAll('#lista-telefones [id^=tel-row]')].map(row => ({
+    telefone: row.querySelector('.tel-num').value.trim(),
+    tipo: row.querySelector('.tel-tipo').value,
+  })).filter(t => t.telefone);
+
+  const enderecos = [...document.querySelectorAll('#lista-enderecos [id^=end-row]')].map(row => ({
+    cep: row.querySelector('.end-cep').value.trim(),
+    rua: row.querySelector('.end-rua').value.trim(),
+    numero: row.querySelector('.end-num').value.trim(),
+    complemento: row.querySelector('.end-comp').value.trim(),
+    bairro: row.querySelector('.end-bairro').value.trim(),
+    cidade: row.querySelector('.end-cidade').value.trim(),
+    tipo: row.querySelector('.end-tipo').value,
+  })).filter(e => e.rua || e.cep);
+
+  return {
+    nome: document.getElementById('pes-nome').value.trim(),
+    rg: document.getElementById('pes-rg').value.trim(),
+    cpf: document.getElementById('pes-cpf').value.trim(),
+    data_nascimento: document.getElementById('pes-nasc').value || null,
+    observacoes: document.getElementById('pes-obs').value.trim(),
+    telefones, enderecos,
+  };
+}
+
+async function salvarPessoa() {
+  const body = coletarPessoa();
+  if (!body.nome) { toast('⚠️ Informe o nome da pessoa.', false, true); return; }
+  const id = document.getElementById('pes-id').value;
+  const url = id ? `/api/pessoas/${id}` : '/api/pessoas';
+  const method = id ? 'PUT' : 'POST';
+  try {
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (r.ok) {
+      fecharModal('modal-pes');
+      carregarPessoas();
+      toast('✅ Pessoa salva!');
+    } else {
+      toast('❌ Erro ao salvar: ' + (d.error||r.status), true);
+    }
+  } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
+}
+
+async function removerPessoa(id) {
+  if (!confirm('Remover esta pessoa? Os dados serão apagados permanentemente.')) return;
+  try {
+    const r = await fetch(`/api/pessoas/${id}`, { method:'DELETE' });
+    if (r.ok) { carregarPessoas(); toast('✅ Pessoa removida.'); }
+    else toast('❌ Erro ao remover.', true);
+  } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
+}
+
+// ── Google Calendar ──────────────────────────────────
+let googleConectado = false;
+
+function atualizarBotaoGoogle() {
+  const btn = document.getElementById('btn-google-connect');
+  const txt = document.getElementById('google-status-txt');
+  if (!btn) return;
+  if (googleConectado) {
+    btn.style.background = '#e8f5e9';
+    btn.style.borderColor = '#4caf50';
+    btn.style.color = '#2e7d32';
+    txt.textContent = '✅ Calendar conectado';
+    btn.onclick = desconectarGoogle;
+  } else {
+    btn.style.background = '#fff';
+    btn.style.borderColor = '#ddd';
+    btn.style.color = '#444';
+    txt.textContent = 'Conectar Calendar';
+    btn.onclick = conectarGoogle;
+  }
+}
+
+function conectarGoogle() {
+  window.open('/auth/google', '_blank', 'width=500,height=600');
+  // Verifica status após alguns segundos
+  setTimeout(verificarStatusGoogle, 3000);
+  setTimeout(verificarStatusGoogle, 6000);
+  setTimeout(verificarStatusGoogle, 10000);
+}
+
+async function desconectarGoogle() {
+  if (!confirm('Desconectar o Google Calendar?')) return;
+  await fetch('/api/google/desconectar', { method: 'POST' });
+  googleConectado = false;
+  atualizarBotaoGoogle();
+  toast('Google Calendar desconectado.');
+}
+
+async function verificarStatusGoogle() {
+  try {
+    const r = await fetch('/api/google/status');
+    const d = await r.json();
+    if (d.conectado !== googleConectado) {
+      googleConectado = d.conectado;
+      atualizarBotaoGoogle();
+      if (d.conectado) toast('✅ Google Calendar conectado com sucesso!');
+    }
+  } catch(e) {}
 }
 
 // ── Init ──────────────────────────────────────────────
