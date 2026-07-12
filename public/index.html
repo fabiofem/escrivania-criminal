@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.8.2</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.8.3</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -426,7 +426,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '2.8.2';
+const APP_VERSION = '2.8.3';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -689,15 +689,21 @@ function renderOitivas() {
 // ── Agenda e WhatsApp Intimação ───────────────────────
 // ── Mini Calendário integrado ─────────────────────────
 let agendaEventos = [];
-let agendaInicioSemana = null;
+let agendaOffsetSemanas = 0; // offset em semanas a partir da semana atual
 
-function inicioSemana(d) {
-  const dt = new Date(d);
-  const dia = dt.getDay();
-  const diff = dia === 0 ? -6 : 1 - dia;
-  dt.setDate(dt.getDate() + diff);
-  dt.setHours(0,0,0,0);
-  return dt;
+function inicioSemanaAtual() {
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  const dia = hoje.getDay();
+  const diff = dia === 0 ? -6 : 1 - dia; // segunda-feira
+  hoje.setDate(hoje.getDate() + diff);
+  return hoje;
+}
+
+function getInicioSemana() {
+  const base = inicioSemanaAtual();
+  base.setDate(base.getDate() + agendaOffsetSemanas * 7);
+  return base;
 }
 
 function abrirAgenda() {
@@ -709,11 +715,16 @@ async function abrirModalAgenda() {
     toast('⚠️ Conecte o Google Calendar primeiro (botão no topo da página).', false, true);
     return;
   }
-  agendaInicioSemana = inicioSemana(new Date());
-  // Pré-preenche com data já selecionada
+  agendaOffsetSemanas = 0;
   const dataAtual = document.getElementById('oit-data').value;
   const horaAtual = document.getElementById('oit-hora').value || '09:00';
-  if (dataAtual) agendaInicioSemana = inicioSemana(dataAtual);
+  // Se já tem data selecionada, calcula o offset para ir para aquela semana
+  if (dataAtual) {
+    const base = inicioSemanaAtual();
+    const alvo = new Date(dataAtual + 'T12:00:00');
+    const diffMs = alvo - base;
+    agendaOffsetSemanas = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+  }
   document.getElementById('agenda-data-sel').value = dataAtual || '';
   document.getElementById('agenda-hora-sel').value = horaAtual;
   document.getElementById('agenda-status').style.display = 'none';
@@ -723,14 +734,14 @@ async function abrirModalAgenda() {
 }
 
 async function carregarSemana() {
-  document.getElementById('agenda-loading').style.display = 'block';
   document.getElementById('grade-semana').innerHTML = '<div style="text-align:center;padding:2rem;color:#aaa"><i class="ti ti-loader" style="font-size:32px;display:block;margin-bottom:8px"></i>Carregando agenda…</div>';
 
-  const fim = new Date(agendaInicioSemana);
+  const inicio = getInicioSemana();
+  const fim = new Date(inicio.getTime());
   fim.setDate(fim.getDate() + 7);
 
   try {
-    const r = await fetch(`/api/google/eventos?inicio=${agendaInicioSemana.toISOString()}&fim=${fim.toISOString()}`);
+    const r = await fetch(`/api/google/eventos?inicio=${inicio.toISOString()}&fim=${fim.toISOString()}`);
     if (r.status === 401) {
       googleConectado = false; atualizarBotaoGoogle();
       document.getElementById('grade-semana').innerHTML = '<div style="text-align:center;padding:2rem;color:#c0392b">❌ Calendar desconectado. Reconecte e tente novamente.</div>';
@@ -744,6 +755,7 @@ async function carregarSemana() {
 }
 
 function renderSemana() {
+  const agendaInicioSemana = getInicioSemana();
   const dias = [];
   const DIAS_PT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -851,16 +863,8 @@ function atualizarPreviewAgenda() {
 }
 
 async function navegarCalendario(semanas) {
-  if (!agendaInicioSemana) return;
-  // Cria nova data para não mutar o objeto original
-  const nova = new Date(agendaInicioSemana.getTime());
-  if (semanas === 0) {
-    // Hoje
-    agendaInicioSemana = inicioSemana(new Date());
-  } else {
-    nova.setDate(nova.getDate() + (semanas * 7));
-    agendaInicioSemana = nova;
-  }
+  if (semanas === 0) agendaOffsetSemanas = 0;
+  else agendaOffsetSemanas += semanas;
   await carregarSemana();
 }
 
