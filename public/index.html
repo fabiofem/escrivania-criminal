@@ -723,6 +723,7 @@ function renderOitivas() {
 // ── Agenda e WhatsApp Intimação ───────────────────────
 // ── Mini Calendário integrado ─────────────────────────
 let agendaEventos = [];
+let pendingCalendarEventId = null; // eventId criado mas ainda não vinculado
 let agendaOffsetSemanas = 0; // offset em semanas a partir da semana atual
 
 function inicioSemanaAtual() {
@@ -940,10 +941,9 @@ async function confirmarAgenda() {
       // Preenche os campos no modal de intimação
       document.getElementById('oit-data').value = data;
       document.getElementById('oit-hora').value = hora;
-      // Salva o eventId para poder apagar depois
-      if (d.eventId) document.getElementById('oit-calendar-event-id') && (document.getElementById('oit-calendar-event-id').value = d.eventId);
+      if (d.eventId) pendingCalendarEventId = d.eventId;
       fecharModal('modal-agenda');
-      toast('✅ Evento criado no Calendar! Data e hora preenchidas automaticamente.');
+      toast('✅ Evento criado no Calendar! Data e hora preenchidas. Clique em Salvar para confirmar.');
     } else if (r.status === 401) {
       googleConectado = false; atualizarBotaoGoogle();
       status.style.display = 'block'; status.style.background = '#FCEBEB'; status.style.color = '#A32D2D';
@@ -1046,17 +1046,22 @@ async function salvarNoCalendarDireto() {
       });
       const d = await r.json();
       if(r.ok && d.ok){
-        // Salva eventId na intimação atual se já foi salva
         const oitId = document.getElementById('oit-id').value;
-        if(d.eventId && oitId) {
-          fetch(`/api/oitivas/${oitId}/calendar-event`, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({eventId: d.eventId})
-          }).catch(()=>{});
+        if(d.eventId) {
+          if(oitId) {
+            // Oitiva já salva — atualiza direto
+            await fetch(`/api/oitivas/${oitId}/calendar-event`, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({eventId: d.eventId})
+            }).catch(()=>{});
+            carregarOitivas();
+          } else {
+            // Oitiva ainda não salva — guarda para enviar junto ao salvar
+            pendingCalendarEventId = d.eventId;
+          }
         }
         toast('✅ Evento criado no Google Calendar!');
         if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-brand-google"></i> Criar no Calendar';}
-        carregarOitivas();
         return;
       }
     } catch(e){}
@@ -1110,6 +1115,7 @@ function abrirNovaOitiva(cnj='', inq='') {
   document.getElementById('modal-oit-title').innerHTML = '<i class="ti ti-calendar-plus" style="color:#534AB7"></i>Nova Intimação';
   document.getElementById('oit-id').value = '';
   document.getElementById('oit-salvo').value = '0';
+  pendingCalendarEventId = null;
   document.getElementById('alerta-whatsapp').style.display = 'none';
   const buscaEl = document.getElementById('oit-cnj-busca');
   if(buscaEl) buscaEl.value = '';
@@ -1275,6 +1281,7 @@ async function salvarOitiva() {
     local: document.getElementById('oit-local').value,
     status: document.getElementById('oit-status').value,
     obs: document.getElementById('oit-obs').value,
+    calendar_event_id: pendingCalendarEventId || '',
   };
   if (!body.cnj) { toast('⚠️ Selecione o CNJ do inquérito.', false, true); return; }
   if (!body.pessoa) { toast('⚠️ Informe o nome da pessoa.', false, true); return; }
@@ -1290,6 +1297,7 @@ async function salvarOitiva() {
 
       // Mostra painel de notificação
       document.getElementById('oit-salvo').value = '1';
+      pendingCalendarEventId = null; // limpa após salvar
       const btnS = document.getElementById('btn-salvar-oit');
       if(btnS){btnS.disabled=true;btnS.innerHTML='<i class="ti ti-check"></i>Salvo!';}
       const alerta = document.getElementById('alerta-whatsapp');
