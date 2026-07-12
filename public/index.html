@@ -1010,9 +1010,10 @@ function enviarEmail() {
   const assunto = document.getElementById('oit-email-assunto').value.trim();
   const corpo = document.getElementById('oit-email-corpo').value.trim();
   if (!email) { toast('⚠️ Informe o email do destinatário.', false, true); return; }
-  const mailto = `mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
-  window.open(mailto, '_blank');
-  toast('✅ Abrindo cliente de email…');
+  // Abre Gmail diretamente no navegador
+  const gmailURL = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+  window.open(gmailURL, '_blank');
+  toast('✅ Abrindo Gmail…');
 }
 
 async function salvarNoCalendarDireto() {
