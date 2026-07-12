@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.8.3</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.8.4</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -426,7 +426,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '2.8.3';
+const APP_VERSION = '2.8.4';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -1044,7 +1044,7 @@ function editarOitiva(o) {
   document.getElementById('oit-inq').value = o.inquerito||'';
   document.getElementById('oit-inq').readOnly = true;
   document.getElementById('oit-inq').style.background = '#f5f5f0';
-  document.getElementById('oit-pessoa').value = o.pessoa||'';
+  document.getElementById('oit-pessoa').value = o.pessoa_nome||o.pessoa||'';
   document.getElementById('oit-qual').value = o.qualidade||'Vítima';
   document.getElementById('oit-data').value = (o.data_oitiva||'').split('T')[0];
   document.getElementById('oit-hora').value = o.hora||'09:00';
@@ -1147,7 +1147,9 @@ async function salvarOitiva(abrirCal=false, abrirWhatsApp=false) {
     cnj: document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value || document.getElementById('oit-cnj-busca').value.trim(),
     inquerito: document.getElementById('oit-inq').value,
     pessoa: document.getElementById('oit-pessoa').value,
+    pessoa_nome: document.getElementById('oit-pessoa').value,
     qualidade: document.getElementById('oit-qual').value,
+    tipo_envolvimento: document.getElementById('oit-qual').value,
     telefone: document.getElementById('oit-tel').value,
     data: document.getElementById('oit-data').value,
     hora: document.getElementById('oit-hora').value,
