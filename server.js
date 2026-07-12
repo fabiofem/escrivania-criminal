@@ -20,6 +20,48 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Log todas as requisições
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const dur = Date.now() - start;
+    const status = res.statusCode;
+    const icon = status >= 500 ? '❌' : status >= 400 ? '⚠️' : '✅';
+    console.log(`${icon} ${req.method} ${req.path} → ${status} (${dur}ms)`);
+  });
+  next();
+});
+
+// Rota de health check e logs recentes
+const recentLogs = [];
+const origLog = console.log.bind(console);
+const origErr = console.error.bind(console);
+console.log = (...args) => { 
+  const msg = args.join(' ');
+  recentLogs.push({ t: new Date().toISOString(), level: 'info', msg });
+  if (recentLogs.length > 200) recentLogs.shift();
+  origLog(...args);
+};
+console.error = (...args) => {
+  const msg = args.join(' ');
+  recentLogs.push({ t: new Date().toISOString(), level: 'error', msg });
+  if (recentLogs.length > 200) recentLogs.shift();
+  origErr(...args);
+};
+
+app.get('/api/logs', (req, res) => {
+  res.json(recentLogs.slice(-100).reverse());
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ ok: true, uptime: process.uptime().toFixed(0) + 's', db: 'conectado' });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 // ── Inicializar tabelas ─────────────────────────────────
@@ -307,17 +349,17 @@ app.post('/api/importar', upload.single('arquivo'), async (req, res) => {
 // ── Stats ─────────────────────────────────────────────────
 app.get('/api/stats', async (req, res) => {
   try {
-    const [total, relat, pend, denu, oagend] = await Promise.all([
+    const [total, relat, cota, denu, oagend] = await Promise.all([
       pool.query('SELECT COUNT(*) FROM inqueritos'),
       pool.query("SELECT COUNT(*) FROM inqueritos WHERE LOWER(relatado) LIKE '%sim%'"),
-      pool.query("SELECT COUNT(*) FROM inqueritos WHERE pendencias IS NOT NULL AND pendencias != ''"),
+      pool.query("SELECT COUNT(*) FROM inqueritos WHERE LOWER(cota_mp) LIKE '%sim%'"),
       pool.query("SELECT COUNT(*) FROM inqueritos WHERE LOWER(denuncia) LIKE '%sim%'"),
       pool.query("SELECT COUNT(*) FROM oitivas WHERE status='Agendada'"),
     ]);
     res.json({
       total: +total.rows[0].count,
       relatados: +relat.rows[0].count,
-      pendentes: +pend.rows[0].count,
+      comCota: +cota.rows[0].count,
       comDenuncia: +denu.rows[0].count,
       oitivasAgendadas: +oagend.rows[0].count,
     });
