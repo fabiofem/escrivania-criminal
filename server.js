@@ -583,11 +583,12 @@ app.post('/api/oitivas', async (req, res) => {
   try {
     const d = req.body;
     const result = await pool.query(`
-      INSERT INTO oitivas (cnj, inquerito, pessoa_id, pessoa_nome, tipo_envolvimento, data_oitiva, hora, local_oitiva, status, telefone, observacoes)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      INSERT INTO oitivas (cnj, inquerito, pessoa_id, pessoa_nome, tipo_envolvimento, data_oitiva, hora, local_oitiva, status, telefone, calendar_event_id, observacoes)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [str(d.cnj), str(d.inquerito), d.pessoa_id||null, str(d.pessoa_nome||d.pessoa),
        str(d.tipo_envolvimento||d.qualidade||'Vítima'),
-       d.data||null, str(d.hora), str(d.local), str(d.status), str(d.telefone||''), str(d.obs)]
+       d.data||null, str(d.hora), str(d.local), str(d.status),
+       str(d.telefone||''), str(d.calendar_event_id||''), str(d.obs)]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -600,11 +601,13 @@ app.put('/api/oitivas/:id', async (req, res) => {
     const d = req.body;
     const result = await pool.query(`
       UPDATE oitivas SET cnj=$1, inquerito=$2, pessoa_id=$3, pessoa_nome=$4,
-        tipo_envolvimento=$5, data_oitiva=$6, hora=$7, local_oitiva=$8, status=$9, telefone=$10, observacoes=$11
-      WHERE id=$12 RETURNING *`,
+        tipo_envolvimento=$5, data_oitiva=$6, hora=$7, local_oitiva=$8, status=$9,
+        telefone=$10, calendar_event_id=COALESCE(NULLIF($11,''), calendar_event_id), observacoes=$12
+      WHERE id=$13 RETURNING *`,
       [str(d.cnj), str(d.inquerito), d.pessoa_id||null, str(d.pessoa_nome||d.pessoa),
        str(d.tipo_envolvimento||d.qualidade||'Vítima'),
-       d.data||null, str(d.hora), str(d.local), str(d.status), str(d.telefone||''), str(d.obs), req.params.id]
+       d.data||null, str(d.hora), str(d.local), str(d.status),
+       str(d.telefone||''), str(d.calendar_event_id||''), str(d.obs), req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
