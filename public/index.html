@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.7.2</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.8.0</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -292,27 +292,51 @@ tr:hover td{background:#EBF4FD}
   </div>
 </div>
 
-<!-- MODAL AGENDA (escolher data/hora e salvar no Calendar) -->
+<!-- MODAL AGENDA — Mini calendário integrado com Gmail -->
 <div class="overlay" id="modal-agenda" style="display:none" onclick="if(event.target===this)fecharModal('modal-agenda')">
-  <div class="modal" style="max-width:420px">
-    <h2><i class="ti ti-calendar-event" style="color:#1a73e8"></i>Agendar no Google Calendar</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:1rem">Escolha a data e horário. O evento será criado automaticamente na sua agenda do Gmail.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="fg">
-        <label>Data *</label>
-        <input type="date" id="agenda-data">
-      </div>
-      <div class="fg">
-        <label>Hora início *</label>
-        <input type="time" id="agenda-hora" value="09:00">
+  <div class="modal" style="max-width:860px;max-height:92vh">
+    <h2><i class="ti ti-calendar-event" style="color:#1a73e8"></i>Minha Agenda — Google Calendar</h2>
+    
+    <!-- Navegação de semana -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <button class="btn" onclick="semanaAnterior()"><i class="ti ti-chevron-left"></i></button>
+      <div id="agenda-periodo" style="font-size:14px;font-weight:600;color:#185FA5"></div>
+      <button class="btn" onclick="proximaSemana()"><i class="ti ti-chevron-right"></i></button>
+    </div>
+
+    <!-- Grade da semana -->
+    <div id="grade-semana" style="overflow-x:auto;margin-bottom:14px">
+      <div style="text-align:center;padding:2rem;color:#aaa" id="agenda-loading">
+        <i class="ti ti-loader" style="font-size:32px;display:block;margin-bottom:8px"></i>
+        Carregando agenda…
       </div>
     </div>
-    <div id="agenda-status" style="display:none;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px"></div>
+
+    <!-- Seleção de horário -->
+    <div style="background:#f5f9ff;border:1px solid #B5D4F4;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Horário selecionado</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+        <div class="fg">
+          <label>Data</label>
+          <input type="date" id="agenda-data-sel" onchange="atualizarPreviewAgenda()">
+        </div>
+        <div class="fg">
+          <label>Hora</label>
+          <input type="time" id="agenda-hora-sel" value="09:00" onchange="atualizarPreviewAgenda()">
+        </div>
+        <button class="btn primary" id="btn-agenda-confirmar" onclick="confirmarAgenda()" style="white-space:nowrap">
+          <i class="ti ti-check"></i>Confirmar e criar evento
+        </button>
+      </div>
+      <div id="agenda-conflito" style="display:none;margin-top:8px;padding:8px 10px;background:#FAEEDA;border-radius:6px;font-size:12px;color:#854F0B">
+        <i class="ti ti-alert-triangle"></i> <span id="agenda-conflito-msg"></span>
+      </div>
+    </div>
+
+    <div id="agenda-status" style="display:none;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:8px"></div>
+
     <div class="mfoot">
       <button class="btn" onclick="fecharModal('modal-agenda')">Cancelar</button>
-      <button class="btn" id="btn-agenda-salvar" style="background:#1a73e8;color:#fff;border-color:#1a73e8" onclick="salvarNoCalendar()">
-        <i class="ti ti-brand-google"></i>Criar evento e confirmar
-      </button>
     </div>
   </div>
 </div>
@@ -388,7 +412,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '2.7.2';
+const APP_VERSION = '2.8.0';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -649,42 +673,195 @@ function renderOitivas() {
 }
 
 // ── Agenda e WhatsApp Intimação ───────────────────────
+// ── Mini Calendário integrado ─────────────────────────
+let agendaEventos = [];
+let agendaInicioSemana = null;
+
+function inicioSemana(d) {
+  const dt = new Date(d);
+  const dia = dt.getDay();
+  const diff = dia === 0 ? -6 : 1 - dia;
+  dt.setDate(dt.getDate() + diff);
+  dt.setHours(0,0,0,0);
+  return dt;
+}
+
 function abrirAgenda() {
-  // fallback - abre calendar direto
   window.open('https://calendar.google.com/calendar/r/week', '_blank');
 }
 
-function abrirModalAgenda() {
-  // Pré-preenche com valores já existentes no modal
+async function abrirModalAgenda() {
+  if (!googleConectado) {
+    toast('⚠️ Conecte o Google Calendar primeiro (botão no topo da página).', false, true);
+    return;
+  }
+  agendaInicioSemana = inicioSemana(new Date());
+  // Pré-preenche com data já selecionada
   const dataAtual = document.getElementById('oit-data').value;
-  const horaAtual = document.getElementById('oit-hora').value;
-  document.getElementById('agenda-data').value = dataAtual || '';
-  document.getElementById('agenda-hora').value = horaAtual || '09:00';
+  const horaAtual = document.getElementById('oit-hora').value || '09:00';
+  if (dataAtual) agendaInicioSemana = inicioSemana(dataAtual);
+  document.getElementById('agenda-data-sel').value = dataAtual || '';
+  document.getElementById('agenda-hora-sel').value = horaAtual;
   document.getElementById('agenda-status').style.display = 'none';
-  document.getElementById('btn-agenda-salvar').disabled = false;
-  document.getElementById('btn-agenda-salvar').innerHTML = '<i class="ti ti-brand-google"></i>Criar evento e confirmar';
+  document.getElementById('agenda-conflito').style.display = 'none';
   document.getElementById('modal-agenda').style.display = 'flex';
+  await carregarSemana();
 }
 
-async function salvarNoCalendar() {
-  const data = document.getElementById('agenda-data').value;
-  const hora = document.getElementById('agenda-hora').value;
-  const status = document.getElementById('agenda-status');
+async function carregarSemana() {
+  document.getElementById('agenda-loading').style.display = 'block';
+  document.getElementById('grade-semana').innerHTML = '<div style="text-align:center;padding:2rem;color:#aaa"><i class="ti ti-loader" style="font-size:32px;display:block;margin-bottom:8px"></i>Carregando agenda…</div>';
 
-  if (!data) { 
-    status.style.display = 'block';
-    status.style.background = '#FCEBEB';
-    status.style.color = '#A32D2D';
-    status.textContent = '⚠️ Selecione a data antes de continuar.';
-    return; 
+  const fim = new Date(agendaInicioSemana);
+  fim.setDate(fim.getDate() + 7);
+
+  try {
+    const r = await fetch(`/api/google/eventos?inicio=${agendaInicioSemana.toISOString()}&fim=${fim.toISOString()}`);
+    if (r.status === 401) {
+      googleConectado = false; atualizarBotaoGoogle();
+      document.getElementById('grade-semana').innerHTML = '<div style="text-align:center;padding:2rem;color:#c0392b">❌ Calendar desconectado. Reconecte e tente novamente.</div>';
+      return;
+    }
+    agendaEventos = await r.json();
+    renderSemana();
+  } catch(e) {
+    document.getElementById('grade-semana').innerHTML = '<div style="text-align:center;padding:2rem;color:#c0392b">❌ Erro ao carregar: ' + e.message + '</div>';
+  }
+}
+
+function renderSemana() {
+  const dias = [];
+  const DIAS_PT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(agendaInicioSemana);
+    d.setDate(d.getDate() + i);
+    dias.push(d);
   }
 
-  const btn = document.getElementById('btn-agenda-salvar');
+  // Atualiza período
+  const ini = dias[0], fim2 = dias[6];
+  document.getElementById('agenda-periodo').textContent =
+    `${ini.getDate()} ${MESES_PT[ini.getMonth()]} — ${fim2.getDate()} ${MESES_PT[fim2.getMonth()]} ${fim2.getFullYear()}`;
+
+  // Horários de trabalho: 8h às 19h
+  const HORAS = [];
+  for (let h = 8; h <= 18; h++) HORAS.push(h);
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px">
+    <thead><tr>
+      <th style="width:50px;padding:6px;color:#aaa;font-weight:400;font-size:11px">Hora</th>`;
+
+  dias.forEach(d => {
+    const hoje = new Date();
+    const isHoje = d.toDateString() === hoje.toDateString();
+    const isSel = document.getElementById('agenda-data-sel').value === d.toISOString().split('T')[0];
+    html += `<th style="padding:6px 4px;text-align:center;${isHoje?'color:#1a73e8;font-weight:700':'color:#444'};${isSel?'background:#E6F1FB;border-radius:8px 8px 0 0':''}">
+      <div style="font-size:10px;text-transform:uppercase">${DIAS_PT[d.getDay()]}</div>
+      <div style="font-size:16px;font-weight:700">${d.getDate()}</div>
+    </th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  HORAS.forEach(h => {
+    html += `<tr>
+      <td style="padding:4px 6px;color:#aaa;font-size:10px;white-space:nowrap;vertical-align:top;border-top:1px solid #f0f0f0">${String(h).padStart(2,'0')}:00</td>`;
+
+    dias.forEach(d => {
+      const dataStr = d.toISOString().split('T')[0];
+      const isSel = document.getElementById('agenda-data-sel').value === dataStr;
+      const horaSel = document.getElementById('agenda-hora-sel').value;
+      const hSel = parseInt((horaSel||'09').split(':')[0]);
+      const isHoraSel = isSel && h === hSel;
+
+      // Eventos nessa hora
+      const evs = agendaEventos.filter(e => {
+        if (!e.inicio) return false;
+        const ei = new Date(e.inicio);
+        return ei.toISOString().split('T')[0] === dataStr && ei.getHours() === h;
+      });
+
+      const bgSel = isHoraSel ? '#1a73e8' : 'transparent';
+      const fgSel = isHoraSel ? '#fff' : 'inherit';
+
+      html += `<td onclick="selecionarHorario('${dataStr}','${String(h).padStart(2,'0')}:00')"
+        style="padding:2px;border:1px solid #f0f0f0;vertical-align:top;cursor:pointer;min-height:28px;background:${bgSel};transition:background .15s"
+        onmouseover="if('${isHoraSel}'!=='true')this.style.background='#E6F1FB'"
+        onmouseout="if('${isHoraSel}'!=='true')this.style.background='transparent'">`;
+
+      evs.forEach(e => {
+        const dur = e.fim ? Math.round((new Date(e.fim)-new Date(e.inicio))/60000) : 60;
+        html += `<div title="${e.titulo}" style="background:#1a73e8;color:#fff;border-radius:4px;padding:2px 4px;font-size:10px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+          ${e.titulo}
+        </div>`;
+      });
+
+      if (isHoraSel) html += `<div style="color:${fgSel};font-size:10px;font-weight:700;text-align:center">✓</div>`;
+
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('grade-semana').innerHTML = html;
+  atualizarPreviewAgenda();
+}
+
+function selecionarHorario(data, hora) {
+  document.getElementById('agenda-data-sel').value = data;
+  document.getElementById('agenda-hora-sel').value = hora;
+  renderSemana();
+  atualizarPreviewAgenda();
+}
+
+function atualizarPreviewAgenda() {
+  const data = document.getElementById('agenda-data-sel').value;
+  const hora = document.getElementById('agenda-hora-sel').value;
+  if (!data || !hora) return;
+  const h = parseInt(hora.split(':')[0]);
+  const conflitos = agendaEventos.filter(e => {
+    if (!e.inicio) return false;
+    const ei = new Date(e.inicio);
+    return ei.toISOString().split('T')[0] === data && ei.getHours() === h;
+  });
+  const div = document.getElementById('agenda-conflito');
+  if (conflitos.length) {
+    div.style.display = 'block';
+    document.getElementById('agenda-conflito-msg').textContent =
+      `Conflito: "${conflitos[0].titulo}" já está agendado neste horário.`;
+  } else {
+    div.style.display = 'none';
+  }
+}
+
+async function semanaAnterior() {
+  agendaInicioSemana.setDate(agendaInicioSemana.getDate() - 7);
+  await carregarSemana();
+}
+
+async function proximaSemana() {
+  agendaInicioSemana.setDate(agendaInicioSemana.getDate() + 7);
+  await carregarSemana();
+}
+
+async function confirmarAgenda() {
+  const data = document.getElementById('agenda-data-sel').value;
+  const hora = document.getElementById('agenda-hora-sel').value;
+  const status = document.getElementById('agenda-status');
+
+  if (!data) {
+    status.style.display = 'block'; status.style.background = '#FCEBEB'; status.style.color = '#A32D2D';
+    status.textContent = '⚠️ Selecione uma data clicando na grade.';
+    return;
+  }
+
+  const btn = document.getElementById('btn-agenda-confirmar');
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader"></i> Criando evento…';
   status.style.display = 'none';
 
-  // Pega dados do modal de intimação para criar o evento
   const cnj = document.getElementById('oit-cnj-hidden').value || document.getElementById('oit-cnj').value;
   const inq = document.getElementById('oit-inq').value;
   const pessoa = document.getElementById('oit-pessoa').value || 'A definir';
@@ -697,36 +874,27 @@ async function salvarNoCalendar() {
     const r = await fetch('/api/google/evento', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ cnj, inquerito: inq, pessoa, qualidade: qual, data, hora, local, obs, bo })
+      body: JSON.stringify({ cnj, inquerito:inq, pessoa, qualidade:qual, data, hora, local, obs, bo })
     });
     const d = await r.json();
-
     if (r.ok && d.ok) {
-      // Sucesso — preenche os campos e fecha o modal
+      // Preenche os campos no modal de intimação
       document.getElementById('oit-data').value = data;
       document.getElementById('oit-hora').value = hora;
       fecharModal('modal-agenda');
-      toast('✅ Evento criado no Google Calendar! Data e hora preenchidas.');
+      toast('✅ Evento criado no Calendar! Data e hora preenchidas automaticamente.');
     } else if (r.status === 401) {
-      // Token expirado
-      status.style.display = 'block';
-      status.style.background = '#FCEBEB';
-      status.style.color = '#A32D2D';
-      status.innerHTML = '❌ Google Calendar desconectado. <a href="/auth/google" target="_blank" style="color:#185FA5">Clique aqui para reconectar</a> e tente novamente.';
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-brand-google"></i>Criar evento e confirmar';
-      googleConectado = false;
-      atualizarBotaoGoogle();
+      googleConectado = false; atualizarBotaoGoogle();
+      status.style.display = 'block'; status.style.background = '#FCEBEB'; status.style.color = '#A32D2D';
+      status.innerHTML = '❌ Calendar desconectado. <a href="/auth/google" target="_blank" style="color:#185FA5">Reconecte aqui</a> e tente novamente.';
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i>Confirmar e criar evento';
     } else {
       throw new Error(d.error || 'Erro desconhecido');
     }
   } catch(e) {
-    status.style.display = 'block';
-    status.style.background = '#FCEBEB';
-    status.style.color = '#A32D2D';
-    status.textContent = '❌ Erro ao criar evento: ' + e.message;
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-brand-google"></i>Tentar novamente';
+    status.style.display = 'block'; status.style.background = '#FCEBEB'; status.style.color = '#A32D2D';
+    status.textContent = '❌ Erro: ' + e.message;
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i>Tentar novamente';
   }
 }
 
