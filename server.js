@@ -875,6 +875,15 @@ app.post('/api/google/evento', async (req, res) => {
   }
 });
 
+// Buscar oitiva individual (com calendar_event_id)
+app.get('/api/oitivas/:id/detail', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM oitivas WHERE id=$1', [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Não encontrada' });
+    res.json(r.rows[0]);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // Salvar eventId do Calendar na oitiva
 app.post('/api/oitivas/:id/calendar-event', async (req, res) => {
   try {
