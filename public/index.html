@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v2.9.8</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v3.0.0</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -129,7 +129,7 @@ tr:hover td{background:#EBF4FD}
             <th>Arquivamento</th><th>ANP</th><th>Denúncia</th><th>Obj. Apreendidos</th>
             <th>Pendências</th><th>Atualizado</th><th>Ações</th>
           </tr></thead>
-          <tbody id="tbody-inq"><tr><td colspan="17"><div class="loading">Carregando…</div></td></tr></tbody>
+          <tbody id="tbody-inq"><tr><td colspan="19"><div class="loading">Carregando…</div></td></tr></tbody>
         </table>
       </div>
     </div>
@@ -170,6 +170,20 @@ tr:hover td{background:#EBF4FD}
       <div class="fg"><label>Nº Inquérito</label><input id="inq-inq" placeholder="IP 123/2024"></div>
       <div class="fg"><label>BO</label><input id="inq-bo" placeholder="BO 456/2024"></div>
       <div class="fg full"><label>Natureza Criminal</label><input id="inq-nat" placeholder="Ex: Furto qualificado, Lesão corporal…"></div>
+      <div class="fg"><label>Tipo Inquérito</label>
+        <select id="inq-tipo-inq">
+          <option>Portaria</option>
+          <option>Auto de Prisão Em Flagrante</option>
+          <option>Requisição MP</option>
+        </select>
+      </div>
+      <div class="fg"><label>Tipo Procedimento</label>
+        <select id="inq-tipo-proc">
+          <option>Inquérito Policial</option>
+          <option>Termo Circunstanciado</option>
+          <option>Ato Infracional</option>
+        </select>
+      </div>
       <div class="fg"><label>Autor</label><input id="inq-autor"></div>
       <div class="fg"><label>Vítima</label><input id="inq-vitima"></div>
       <div class="fg"><label>Relatado</label><select id="inq-relat"><option>Não</option><option>Sim</option></select></div>
@@ -460,7 +474,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '2.9.8';
+const APP_VERSION = '3.0.0';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -560,7 +574,7 @@ function renderInqueritos() {
   const label = filtroAtivo ? ` (filtro: ${filtroAtivo === 'cota' ? 'Cota MP' : filtroAtivo === 'relatado' ? 'Relatados' : 'Com Denúncia'} — clique no card para remover)` : '';
   document.getElementById('count-inq').textContent = `${lista.length} registros${label}`;
   if (!lista.length) {
-    tb.innerHTML = `<tr><td colspan="17"><div class="empty"><i class="ti ti-files-off"></i><h3>Nenhum procedimento encontrado</h3><p>Importe uma planilha ou adicione manualmente.</p></div></td></tr>`;
+    tb.innerHTML = `<tr><td colspan="19"><div class="empty"><i class="ti ti-files-off"></i><h3>Nenhum procedimento encontrado</h3><p>Importe uma planilha ou adicione manualmente.</p></div></td></tr>`;
     return;
   }
   tb.innerHTML = lista.map(r => `<tr>
@@ -568,6 +582,8 @@ function renderInqueritos() {
     <td><span class="cnj">${r.cnj||'—'}</span></td>
     <td>${r.inquerito||'—'}</td>
     <td>${r.bo||'—'}</td>
+    <td><span class='pill p-azul' style='font-size:10px'>${r.tipo_inquerito||'Portaria'}</span></td>
+    <td><span class='pill p-roxo' style='font-size:10px'>${r.tipo_procedimento||'Inq. Policial'}</span></td>
     <td>${r.natureza||'—'}</td>
     <td>${r.autor||'—'}</td>
     <td>${r.vitima||'—'}</td>
@@ -594,6 +610,8 @@ function abrirNovoInq() {
   document.getElementById('modal-inq-title').innerHTML = '<i class="ti ti-file-plus"></i>Novo procedimento';
   ['id','ano','cnj','inq','bo','nat','autor','vitima','prazo','obj','pend'].forEach(f => document.getElementById('inq-'+f).value='');
   ['relat','cota','arq','anp','den'].forEach(f => document.getElementById('inq-'+f).value='Não');
+  document.getElementById('inq-tipo-inq').value='Portaria';
+  document.getElementById('inq-tipo-proc').value='Inquérito Policial';
   document.getElementById('modal-inq').style.display='flex';
 }
 
@@ -615,6 +633,8 @@ function editarInq(r) {
   document.getElementById('inq-den').value = r.denuncia||'Não';
   document.getElementById('inq-obj').value = r.objetos_apreendidos||'';
   document.getElementById('inq-pend').value = r.pendencias||'';
+  document.getElementById('inq-tipo-inq').value = r.tipo_inquerito||'Portaria';
+  document.getElementById('inq-tipo-proc').value = r.tipo_procedimento||'Inquérito Policial';
   document.getElementById('modal-inq').style.display='flex';
 }
 
@@ -636,6 +656,8 @@ async function salvarInq() {
     denuncia: document.getElementById('inq-den').value,
     objetosApreendidos: document.getElementById('inq-obj').value,
     pendencias: document.getElementById('inq-pend').value,
+    tipoInquerito: document.getElementById('inq-tipo-inq').value,
+    tipoProcedimento: document.getElementById('inq-tipo-proc').value,
   };
   const url = id ? `/api/inqueritos/${id}` : '/api/inqueritos';
   const method = id ? 'PUT' : 'POST';
