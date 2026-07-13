@@ -146,6 +146,8 @@ async function initDB() {
       denuncia TEXT DEFAULT 'Não',
       objetos_apreendidos TEXT,
       pendencias TEXT,
+      tipo_inquerito TEXT DEFAULT 'Portaria',
+      tipo_procedimento TEXT DEFAULT 'Inquérito Policial',
       atualizado TEXT,
       criado_em TIMESTAMP DEFAULT NOW(),
       atualizado_em TIMESTAMP DEFAULT NOW()
@@ -309,18 +311,21 @@ app.post('/api/inqueritos', async (req, res) => {
     const d = req.body;
     const hoje = new Date().toLocaleDateString('pt-BR');
     const result = await pool.query(`
-      INSERT INTO inqueritos (ano,cnj,inquerito,bo,natureza,autor,vitima,relatado,cota_mp,prazo,arquivamento,anp,denuncia,objetos_apreendidos,pendencias,atualizado)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      INSERT INTO inqueritos (ano,cnj,inquerito,bo,natureza,autor,vitima,relatado,cota_mp,prazo,arquivamento,anp,denuncia,objetos_apreendidos,pendencias,tipo_inquerito,tipo_procedimento,atualizado)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       ON CONFLICT (cnj) DO UPDATE SET
         ano=$1, inquerito=$3, bo=$4, natureza=$5, autor=$6, vitima=$7,
         relatado=$8, cota_mp=$9, prazo=$10, arquivamento=$11, anp=$12,
         denuncia=$13, objetos_apreendidos=$14, pendencias=$15,
-        atualizado=$16, atualizado_em=NOW()
+        tipo_inquerito=$16, tipo_procedimento=$17,
+        atualizado=$18, atualizado_em=NOW()
       RETURNING *`,
       [str(d.ano), str(d.cnj), str(d.inquerito), str(d.bo), str(d.natureza),
        str(d.autor), str(d.vitima), str(d.relatado), str(d.cotaMP), str(d.prazo),
        str(d.arquivamento), str(d.anp), str(d.denuncia),
-       str(d.objetosApreendidos), str(d.pendencias), `Sim - ${hoje}`]
+       str(d.objetosApreendidos), str(d.pendencias),
+       str(d.tipoInquerito||'Portaria'), str(d.tipoProcedimento||'Inquérito Policial'),
+       `Sim - ${hoje}`]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -337,12 +342,15 @@ app.put('/api/inqueritos/:id', async (req, res) => {
         ano=$1,cnj=$2,inquerito=$3,bo=$4,natureza=$5,autor=$6,vitima=$7,
         relatado=$8,cota_mp=$9,prazo=$10,arquivamento=$11,anp=$12,
         denuncia=$13,objetos_apreendidos=$14,pendencias=$15,
-        atualizado=$16,atualizado_em=NOW()
-      WHERE id=$17 RETURNING *`,
+        tipo_inquerito=$16,tipo_procedimento=$17,
+        atualizado=$18,atualizado_em=NOW()
+      WHERE id=$19 RETURNING *`,
       [str(d.ano), str(d.cnj), str(d.inquerito), str(d.bo), str(d.natureza),
        str(d.autor), str(d.vitima), str(d.relatado), str(d.cotaMP), str(d.prazo),
        str(d.arquivamento), str(d.anp), str(d.denuncia),
-       str(d.objetosApreendidos), str(d.pendencias), `Sim - ${hoje}`, req.params.id]
+       str(d.objetosApreendidos), str(d.pendencias),
+       str(d.tipoInquerito||'Portaria'), str(d.tipoProcedimento||'Inquérito Policial'),
+       `Sim - ${hoje}`, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -671,14 +679,15 @@ app.post('/api/importar', upload.single('arquivo'), async (req, res) => {
               ano=$1, cnj=$2, inquerito=$3, bo=$4, natureza=$5, autor=$6, vitima=$7,
               relatado=$8, cota_mp=$9, prazo=$10, arquivamento=$11, anp=$12,
               denuncia=$13, objetos_apreendidos=$14, pendencias=$15,
-              atualizado=$16, atualizado_em=NOW()
+              tipo_inquerito=$16, tipo_procedimento=$17,
+              atualizado=$18, atualizado_em=NOW()
             WHERE cnj=$2`, valores);
           atualizados++;
         } else {
           await pool.query(`
             INSERT INTO inqueritos
-              (ano,cnj,inquerito,bo,natureza,autor,vitima,relatado,cota_mp,prazo,arquivamento,anp,denuncia,objetos_apreendidos,pendencias,atualizado)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`, valores);
+              (ano,cnj,inquerito,bo,natureza,autor,vitima,relatado,cota_mp,prazo,arquivamento,anp,denuncia,objetos_apreendidos,pendencias,tipo_inquerito,tipo_procedimento,atualizado)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`, valores);
           importados++;
         }
       } catch (rowErr) {
