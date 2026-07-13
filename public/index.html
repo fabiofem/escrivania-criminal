@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v3.0.0</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v3.0.1</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -474,7 +474,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.0.1';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -582,9 +582,9 @@ function renderInqueritos() {
     <td><span class="cnj">${r.cnj||'—'}</span></td>
     <td>${r.inquerito||'—'}</td>
     <td>${r.bo||'—'}</td>
+    <td>${r.natureza||'—'}</td>
     <td><span class='pill p-azul' style='font-size:10px'>${r.tipo_inquerito||'Portaria'}</span></td>
     <td><span class='pill p-roxo' style='font-size:10px'>${r.tipo_procedimento||'Inq. Policial'}</span></td>
-    <td>${r.natureza||'—'}</td>
     <td>${r.autor||'—'}</td>
     <td>${r.vitima||'—'}</td>
     <td>${pill(r.relatado, r.relatado==='Sim'?'p-sim':'p-nao')}</td>
