@@ -875,6 +875,14 @@ app.post('/api/google/evento', async (req, res) => {
   }
 });
 
+// Debug: ver todas as oitivas com calendar_event_id
+app.get('/api/debug/oitivas', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT id, pessoa_nome, data_oitiva, calendar_event_id FROM oitivas ORDER BY id DESC LIMIT 20');
+    res.json(r.rows);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // Buscar oitiva individual (com calendar_event_id)
 app.get('/api/oitivas/:id/detail', async (req, res) => {
   try {
@@ -917,3 +925,4 @@ initDB().then(async () => {
   console.error('Erro ao inicializar banco:', err);
   process.exit(1);
 });
+// debug
