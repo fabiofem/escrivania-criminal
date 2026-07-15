@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v3.0.2</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v3.0.4</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -474,7 +474,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '3.0.2';
+const APP_VERSION = '3.0.4';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -1406,13 +1406,13 @@ function exportExcel() {
   if (tabAtual === 'inq' || tabAtual === 'ambos') {
     const rows = inqueritos.map(r => ({
       'Ano':r.ano,'Nº CNJ':r.cnj,'Nº Inquérito':r.inquerito,'BO':r.bo,
-      'Natureza Criminal':r.natureza,'Autor':r.autor,'Vítima':r.vitima,
+      'Natureza Criminal':r.natureza,'Tipo Inquérito':r.tipo_inquerito||'Portaria','Tipo Procedimento':r.tipo_procedimento||'Inquérito Policial','Autor':r.autor,'Vítima':r.vitima,
       'Relatado':r.relatado,'COTA - MP':r.cota_mp,'Prazo':r.prazo,
       'Arquivamento':r.arquivamento,'ANP':r.anp,'Denúncia':r.denuncia,
       'Objetos Apreendidos':r.objetos_apreendidos,'Pendências':r.pendencias,'Atualizado':r.atualizado
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols']=[{wch:5},{wch:32},{wch:15},{wch:15},{wch:22},{wch:20},{wch:20},{wch:9},{wch:9},{wch:14},{wch:12},{wch:6},{wch:9},{wch:24},{wch:30},{wch:22}];
+    ws['!cols']=[{wch:5},{wch:32},{wch:15},{wch:15},{wch:22},{wch:14},{wch:18},{wch:20},{wch:20},{wch:9},{wch:9},{wch:14},{wch:12},{wch:6},{wch:9},{wch:24},{wch:30},{wch:22}];
     XLSX.utils.book_append_sheet(wb, ws, 'Inquéritos');
   }
   if (tabAtual === 'oit' || tabAtual === 'ambos') {
@@ -1435,7 +1435,7 @@ function exportPDF() {
   const hoje = new Date().toLocaleString('pt-BR');
   const iRows = inqueritos.map((r,i) => `<tr style="background:${i%2?'#f5f9ff':'#fff'}">
     <td>${r.ano||''}</td><td style="font-family:monospace;font-size:9px">${r.cnj||''}</td>
-    <td>${r.inquerito||''}</td><td>${r.bo||''}</td><td>${r.natureza||''}</td>
+    <td>${r.inquerito||''}</td><td>${r.bo||''}</td><td>${r.natureza||''}</td><td>${r.tipo_inquerito||'Portaria'}</td><td>${r.tipo_procedimento||'Inq. Policial'}</td>
     <td>${r.autor||''}</td><td>${r.vitima||''}</td>
     <td style="color:${r.relatado==='Sim'?'#3B6D11':'#888'};font-weight:700">${r.relatado}</td>
     <td style="color:${r.cota_mp==='Sim'?'#A32D2D':'#888'};font-weight:700">${r.cota_mp}</td>
@@ -1469,7 +1469,7 @@ function exportPDF() {
   <h1><img src="/logo.png" style="height:36px;vertical-align:middle;margin-right:8px"> Escrivania Criminal — Relatório de Procedimentos</h1>
   <div class="sub">Gerado em ${hoje} | ${inqueritos.length} inquéritos | ${oitivas.length} oitivas</div>
   ${tabAtual!=='oit'?`<h2>Inquéritos Policiais (${inqueritos.length} registros)</h2>
-  <table><thead><tr><th>Ano</th><th>Nº CNJ</th><th>Nº Inquérito</th><th>BO</th><th>Natureza Criminal</th><th>Autor</th><th>Vítima</th><th>Relatado</th><th>Cota MP</th><th>Prazo</th><th>Arquivamento</th><th>ANP</th><th>Denúncia</th><th>Obj. Apreendidos</th><th>Pendências</th><th>Atualizado</th></tr></thead><tbody>${iRows}</tbody></table>`:''}
+  <table><thead><tr><th>Ano</th><th>Nº CNJ</th><th>Nº Inquérito</th><th>BO</th><th>Natureza Criminal</th><th>Tipo Inq.</th><th>Tipo Proc.</th><th>Autor</th><th>Vítima</th><th>Relatado</th><th>Cota MP</th><th>Prazo</th><th>Arquivamento</th><th>ANP</th><th>Denúncia</th><th>Obj. Apreendidos</th><th>Pendências</th><th>Atualizado</th></tr></thead><tbody>${iRows}</tbody></table>`:''}
   ${tabAtual!=='inq'?`<h2>Agenda de Oitivas (${oitivas.length} registros)</h2>
   <table><thead><tr><th>Nº CNJ</th><th>Inquérito</th><th>Pessoa</th><th>Qualidade</th><th>Data</th><th>Hora</th><th>Local</th><th>Status</th><th>Observações</th></tr></thead><tbody>${oRows}</tbody></table>`:''}
   <div class="footer">Escrivania Criminal · Relatório gerado em ${hoje}</div>
