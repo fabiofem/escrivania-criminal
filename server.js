@@ -894,6 +894,20 @@ app.get('/api/debug/oitivas', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// Rota de migração de emergência
+app.get('/api/migrar-agora', async (req, res) => {
+  try {
+    await pool.query(`ALTER TABLE inqueritos ADD COLUMN IF NOT EXISTS tipo_inquerito TEXT DEFAULT 'Portaria'`);
+    await pool.query(`ALTER TABLE inqueritos ADD COLUMN IF NOT EXISTS tipo_procedimento TEXT DEFAULT 'Inquérito Policial'`);
+    await pool.query(`UPDATE inqueritos SET tipo_inquerito = 'Portaria' WHERE tipo_inquerito IS NULL OR tipo_inquerito = ''`);
+    await pool.query(`UPDATE inqueritos SET tipo_procedimento = 'Inquérito Policial' WHERE tipo_procedimento IS NULL OR tipo_procedimento = ''`);
+    console.log('✅ Migração executada com sucesso!');
+    res.json({ ok: true, msg: 'Colunas criadas e registros atualizados!' });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Buscar oitiva individual (com calendar_event_id)
 app.get('/api/oitivas/:id/detail', async (req, res) => {
   try {
