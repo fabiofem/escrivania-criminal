@@ -670,6 +670,8 @@ app.post('/api/importar', upload.single('arquivo'), async (req, res) => {
           col(r, 'Denúncia', 'Denuncia', 'denuncia') || 'Não',
           col(r, 'Objetos Apreendidos', 'Objetos', 'objetos_apreendidos'),
           col(r, 'Pendências', 'Pendencias', 'pendencias'),
+          col(r, 'Tipo Inquérito', 'Tipo Inquerito', 'tipo_inquerito') || 'Portaria',
+          col(r, 'Tipo Procedimento', 'tipo_procedimento') || 'Inquérito Policial',
           `Sim - ${hoje}`
         ];
 
