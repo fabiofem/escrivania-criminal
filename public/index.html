@@ -83,7 +83,7 @@ tr:hover td{background:#EBF4FD}
 <div class="app">
 
   <div class="header">
-    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v3.0.4</span></h1>
+    <h1><img src="/logo.png" style="height:42px;width:42px;object-fit:contain;vertical-align:middle"> Escrivania Criminal &nbsp;<span class="badge" id="badge-total">0 procedimentos</span> <span style="font-size:10px;color:#aaa;font-weight:400" id="version-badge">v3.1.0</span></h1>
     <div class="header-actions">
       <div class="export-group">
         <span class="export-label">Exportar</span>
@@ -117,17 +117,30 @@ tr:hover td{background:#EBF4FD}
   <div id="pane-inq">
     <div class="toolbar">
       <button class="btn primary" onclick="abrirNovoInq()"><i class="ti ti-plus"></i>Novo procedimento</button>
-      <div class="search"><i class="ti ti-search"></i><input id="busca" placeholder="Buscar CNJ, autor, vítima, natureza…" oninput="carregarInqueritos()"></div>
+      <div class="search"><i class="ti ti-search"></i><input id="busca" placeholder="Buscar CNJ, BO, autor, vítima, natureza, ano…" oninput="renderInqueritos()"></div>
       <span id="count-inq" style="font-size:12px;color:#aaa;margin-left:auto"></span>
+    </div>
+    <!-- Filtros rápidos -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase">Filtrar:</span>
+      <select id="filtro-ano" onchange="renderInqueritos()" style="padding:5px 8px;border:1px solid rgba(0,0,0,.12);border-radius:6px;font-size:12px;background:#fff;outline:none">
+        <option value="">Todos os anos</option>
+      </select>
+      <select id="filtro-natureza" onchange="renderInqueritos()" style="padding:5px 8px;border:1px solid rgba(0,0,0,.12);border-radius:6px;font-size:12px;background:#fff;outline:none;max-width:200px">
+        <option value="">Todos os crimes</option>
+      </select>
+      <select id="filtro-tipo-inq" onchange="renderInqueritos()" style="padding:5px 8px;border:1px solid rgba(0,0,0,.12);border-radius:6px;font-size:12px;background:#fff;outline:none">
+        <option value="">Tipo Inquérito</option>
+        <option>Portaria</option>
+        <option>Auto de Prisão Em Flagrante</option>
+        <option>Requisição MP</option>
+      </select>
+      <button class="btn" onclick="limparFiltros()" style="font-size:11px;padding:5px 10px"><i class="ti ti-x"></i>Limpar filtros</button>
     </div>
     <div class="table-wrap">
       <div style="overflow-x:auto">
         <table>
-          <thead><tr>
-            <th>Ano</th><th>Nº CNJ</th><th>Inquérito</th><th>BO</th><th>Natureza Criminal</th><th>Tipo Inq.</th><th>Tipo Proc.</th>
-            <th>Autor</th><th>Vítima</th><th>Relatado</th><th>Cota MP</th><th>Prazo</th>
-            <th>Arquivamento</th><th>ANP</th><th>Denúncia</th><th>Obj. Apreendidos</th>
-            <th>Pendências</th><th>Atualizado</th><th>Ações</th>
+          <thead><tr id="thead-inq">
           </tr></thead>
           <tbody id="tbody-inq"><tr><td colspan="19"><div class="loading">Carregando…</div></td></tr></tbody>
         </table>
@@ -474,7 +487,7 @@ tr:hover td{background:#EBF4FD}
 
 <script>
 // ── Versão ────────────────────────────────────────────
-const APP_VERSION = '3.0.4';
+const APP_VERSION = '3.1.0';
 const APP_BUILD = '2026-07-12T13:00';
 
 // ── Estado global ──────────────────────────────────────
@@ -482,6 +495,8 @@ let tabAtual = 'inq';
 let inqueritos = [];
 let oitivas = [];
 let filtroAtivo = ''; // 'relatado', 'cota', 'denuncia', ''
+let sortColuna = 'atualizado_em'; // coluna atual de ordenação
+let sortDir = 'desc'; // 'asc' ou 'desc'
 
 
 // ── Utilitários ────────────────────────────────────────
@@ -536,6 +551,68 @@ async function carregarStats() {
 // ════════════════════════════════════════════════════════
 // INQUÉRITOS
 // ════════════════════════════════════════════════════════
+function popularFiltros() {
+  // Anos únicos
+  const anos = [...new Set(inqueritos.map(r => r.ano).filter(Boolean))].sort((a,b) => b-a);
+  const selAno = document.getElementById('filtro-ano');
+  const valAno = selAno.value;
+  selAno.innerHTML = '<option value="">Todos os anos</option>' + anos.map(a => `<option${a===valAno?' selected':''}>${a}</option>`).join('');
+
+  // Naturezas únicas (primeiras 40 chars)
+  const naturezas = [...new Set(inqueritos.map(r => r.natureza).filter(Boolean))].sort();
+  const selNat = document.getElementById('filtro-natureza');
+  const valNat = selNat.value;
+  selNat.innerHTML = '<option value="">Todos os crimes</option>' + naturezas.map(n => `<option value="${n}"${n===valNat?' selected':''}>${n.substring(0,50)}</option>`).join('');
+}
+
+function limparFiltros() {
+  document.getElementById('busca').value = '';
+  document.getElementById('filtro-ano').value = '';
+  document.getElementById('filtro-natureza').value = '';
+  document.getElementById('filtro-tipo-inq').value = '';
+  filtroAtivo = '';
+  document.querySelectorAll('.sc').forEach(el => el.classList.remove('ativo'));
+  renderInqueritos();
+}
+
+function ordenarPor(coluna) {
+  if (sortColuna === coluna) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortColuna = coluna; sortDir = 'asc'; }
+  renderInqueritos();
+}
+
+function renderThead() {
+  const cols = [
+    {key:'ano', label:'Ano'},
+    {key:'cnj', label:'Nº CNJ'},
+    {key:'inquerito', label:'Inquérito'},
+    {key:'bo', label:'BO'},
+    {key:'natureza', label:'Natureza Criminal'},
+    {key:'tipo_inquerito', label:'Tipo Inq.'},
+    {key:'tipo_procedimento', label:'Tipo Proc.'},
+    {key:'autor', label:'Autor'},
+    {key:'vitima', label:'Vítima'},
+    {key:'relatado', label:'Relatado'},
+    {key:'cota_mp', label:'Cota MP'},
+    {key:'prazo', label:'Prazo'},
+    {key:'arquivamento', label:'Arquivamento'},
+    {key:'anp', label:'ANP'},
+    {key:'denuncia', label:'Denúncia'},
+    {key:'objetos_apreendidos', label:'Obj. Apreendidos'},
+    {key:'pendencias', label:'Pendências'},
+    {key:'atualizado', label:'Atualizado'},
+    {key:null, label:'Ações'},
+  ];
+  const tr = document.getElementById('thead-inq');
+  if (!tr) return;
+  tr.innerHTML = cols.map(c => {
+    if (!c.key) return `<th>Ações</th>`;
+    const isSorted = sortColuna === c.key;
+    const icon = isSorted ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+    return `<th onclick="ordenarPor('${c.key}')" style="cursor:pointer;user-select:none;white-space:nowrap" title="Clique para ordenar">${c.label}<span style="color:#1a73e8">${icon}</span></th>`;
+  }).join('');
+}
+
 function filtrarPor(tipo) {
   filtroAtivo = filtroAtivo === tipo ? '' : tipo; // toggle
   // Highlight active card
@@ -550,8 +627,7 @@ function filtrarPor(tipo) {
 }
 
 async function carregarInqueritos() {
-  const q = document.getElementById('busca').value.trim();
-  const url = '/api/inqueritos' + (q ? `?search=${encodeURIComponent(q)}` : '');
+  const url = '/api/inqueritos';
   try {
     const r = await fetch(url);
     if (!r.ok) throw new Error('Erro ' + r.status);
@@ -565,14 +641,42 @@ async function carregarInqueritos() {
 }
 
 function renderInqueritos() {
+  renderThead();
+  popularFiltros();
   const tb = document.getElementById('tbody-inq');
-  // Apply active filter
+
+  // Filtro de cards
   let lista = inqueritos;
-  if (filtroAtivo === 'relatado') lista = inqueritos.filter(r => r.relatado && r.relatado.toLowerCase().includes('sim'));
-  if (filtroAtivo === 'cota') lista = inqueritos.filter(r => r.cota_mp && r.cota_mp.toLowerCase().includes('sim'));
-  if (filtroAtivo === 'denuncia') lista = inqueritos.filter(r => r.denuncia && r.denuncia.toLowerCase().includes('sim'));
-  const label = filtroAtivo ? ` (filtro: ${filtroAtivo === 'cota' ? 'Cota MP' : filtroAtivo === 'relatado' ? 'Relatados' : 'Com Denúncia'} — clique no card para remover)` : '';
-  document.getElementById('count-inq').textContent = `${lista.length} registros${label}`;
+  if (filtroAtivo === 'relatado') lista = lista.filter(r => r.relatado && r.relatado.toLowerCase().includes('sim'));
+  if (filtroAtivo === 'cota') lista = lista.filter(r => r.cota_mp && r.cota_mp.toLowerCase().includes('sim'));
+  if (filtroAtivo === 'denuncia') lista = lista.filter(r => r.denuncia && r.denuncia.toLowerCase().includes('sim'));
+
+  // Filtros dos dropdowns
+  const ano = document.getElementById('filtro-ano')?.value;
+  const nat = document.getElementById('filtro-natureza')?.value;
+  const tipoInq = document.getElementById('filtro-tipo-inq')?.value;
+  if (ano) lista = lista.filter(r => r.ano === ano);
+  if (nat) lista = lista.filter(r => r.natureza === nat);
+  if (tipoInq) lista = lista.filter(r => r.tipo_inquerito === tipoInq);
+
+  // Busca textual
+  const q = (document.getElementById('busca')?.value || '').toLowerCase().trim();
+  if (q) lista = lista.filter(r =>
+    [r.cnj, r.inquerito, r.autor, r.vitima, r.natureza, r.bo, r.ano, r.prazo].some(v => v && v.toLowerCase().includes(q))
+  );
+
+  // Ordenação
+  if (sortColuna) {
+    lista = [...lista].sort((a, b) => {
+      const va = (a[sortColuna] || '').toString().toLowerCase();
+      const vb = (b[sortColuna] || '').toString().toLowerCase();
+      const cmp = va.localeCompare(vb, 'pt-BR', {numeric: true});
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }
+
+  const label = filtroAtivo ? ` — ${filtroAtivo === 'cota' ? 'Cota MP' : filtroAtivo === 'relatado' ? 'Relatados' : 'Com Denúncia'}` : '';
+  document.getElementById('count-inq').textContent = `${lista.length} de ${inqueritos.length} registros${label}`;
   if (!lista.length) {
     tb.innerHTML = `<tr><td colspan="19"><div class="empty"><i class="ti ti-files-off"></i><h3>Nenhum procedimento encontrado</h3><p>Importe uma planilha ou adicione manualmente.</p></div></td></tr>`;
     return;
