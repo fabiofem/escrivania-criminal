@@ -654,6 +654,16 @@ app.post('/api/importar', upload.single('arquivo'), async (req, res) => {
 
         const existe = await pool.query('SELECT id FROM inqueritos WHERE cnj=$1', [cnj]);
 
+        // Log para debug
+        if (cnj === '1503443-23.2018.8.26.0625' || cnj === '1501078-05.2026.8.26.0625') {
+          console.log(`DEBUG CNJ ${cnj}:`, JSON.stringify({
+            arquivamento: col(r, 'Arquivamento', 'arquivamento'),
+            prazo: col(r, 'Prazo', 'prazo'),
+            existe: existe.rows.length > 0,
+            keys: Object.keys(r).join(', ')
+          }));
+        }
+
         const valores = [
           col(r, 'Ano', 'ano'),
           cnj,
