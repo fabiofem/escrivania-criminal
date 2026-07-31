@@ -552,12 +552,14 @@ async function carregarStats() {
   try {
     const r = await fetch('/api/stats');
     const s = await r.json();
-    document.getElementById('st-total').textContent = s.total;
+    const ativos = s.total - (s.arquivados||0) - (s.comAnp||0);
+    document.getElementById('st-total').textContent = ativos;
+    document.getElementById('badge-total').textContent = ativos + ' procedimentos ativos';
     document.getElementById('st-relat').textContent = s.relatados;
     document.getElementById('st-pend').textContent = s.comCota;
     document.getElementById('st-denu').textContent = s.comDenuncia;
     document.getElementById('st-oag').textContent = s.oitivasAgendadas;
-    document.getElementById('badge-total').textContent = s.total + ' procedimentos';
+    // badge updated in carregarStats
   } catch(e) {}
 }
 
