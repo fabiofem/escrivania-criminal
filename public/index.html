@@ -1545,6 +1545,29 @@ async function importarExcel(input) {
 function exportExcel() {
   const wb = XLSX.utils.book_new();
   if (tabAtual === 'inq' || tabAtual === 'ambos') {
+    const toRow = r => ({
+      'Ano':r.ano,'Nº CNJ':r.cnj,'Nº Inquérito':r.inquerito,'BO':r.bo,
+      'Natureza Criminal':r.natureza,'Tipo Inquérito':r.tipo_inquerito||'Portaria',
+      'Tipo Procedimento':r.tipo_procedimento||'Inquérito Policial',
+      'Autor':r.autor,'Vítima':r.vitima,'Relatado':r.relatado,
+      'COTA - MP':r.cota_mp,'Prazo':r.prazo,'Arquivamento':r.arquivamento,
+      'ANP':r.anp,'Denúncia':r.denuncia,
+      'Objetos Apreendidos':r.objetos_apreendidos,'Pendências':r.pendencias,'Atualizado':r.atualizado
+    });
+    const cols=[{wch:5},{wch:32},{wch:15},{wch:15},{wch:22},{wch:14},{wch:18},{wch:20},{wch:20},{wch:9},{wch:9},{wch:14},{wch:12},{wch:6},{wch:9},{wch:24},{wch:30},{wch:22}];
+    const addSheet = (nome, dados) => {
+      if (!dados.length) return;
+      const ws = XLSX.utils.json_to_sheet(dados.map(toRow));
+      ws['!cols'] = cols;
+      XLSX.utils.book_append_sheet(wb, ws, nome);
+    };
+    addSheet('Todos', inqueritos);
+    addSheet('Em Andamento', inqueritos.filter(r=>r.arquivamento!=='Sim'&&r.anp!=='Sim'&&r.denuncia!=='Sim'));
+    addSheet('Relatados', inqueritos.filter(r=>r.relatado==='Sim'));
+    addSheet('Cotas MP', inqueritos.filter(r=>r.cota_mp==='Sim'));
+    addSheet('ANP', inqueritos.filter(r=>r.anp==='Sim'));
+    addSheet('Arquivados', inqueritos.filter(r=>r.arquivamento==='Sim'));
+    addSheet('Com Denuncia', inqueritos.filter(r=>r.denuncia==='Sim'));
   }
   if (tabAtual === 'oit' || tabAtual === 'ambos') {
     const rows = oitivas.map(o => ({
