@@ -718,12 +718,14 @@ app.post('/api/importar', upload.single('arquivo'), async (req, res) => {
 // ── Stats ─────────────────────────────────────────────────
 app.get('/api/stats', async (req, res) => {
   try {
-    const [total, relat, cota, denu, oagend] = await Promise.all([
+    const [total, relat, cota, denu, oagend, arq, anp] = await Promise.all([
       pool.query('SELECT COUNT(*) FROM inqueritos'),
       pool.query("SELECT COUNT(*) FROM inqueritos WHERE LOWER(relatado) LIKE '%sim%'"),
       pool.query("SELECT COUNT(*) FROM inqueritos WHERE LOWER(cota_mp) LIKE '%sim%'"),
       pool.query("SELECT COUNT(*) FROM inqueritos WHERE LOWER(denuncia) LIKE '%sim%'"),
       pool.query("SELECT COUNT(*) FROM oitivas WHERE status='Agendada'"),
+      pool.query("SELECT COUNT(*) FROM inqueritos WHERE LOWER(arquivamento) LIKE '%sim%'"),
+      pool.query("SELECT COUNT(*) FROM inqueritos WHERE LOWER(anp) LIKE '%sim%'"),
     ]);
     res.json({
       total: +total.rows[0].count,
@@ -731,6 +733,8 @@ app.get('/api/stats', async (req, res) => {
       comCota: +cota.rows[0].count,
       comDenuncia: +denu.rows[0].count,
       oitivasAgendadas: +oagend.rows[0].count,
+      arquivados: +arq.rows[0].count,
+      comAnp: +anp.rows[0].count,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
