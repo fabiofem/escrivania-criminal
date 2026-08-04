@@ -120,7 +120,7 @@ tr:hover td{background:#EBF4FD}
   <div id="pane-inq">
     <div class="toolbar">
       <button class="btn primary" onclick="abrirNovoInq()"><i class="ti ti-plus"></i>Novo procedimento</button>
-      <div class="search"><i class="ti ti-search"></i><input id="busca" placeholder="Buscar CNJ, BO, autor, vítima, natureza, ano…" oninput="renderInqueritos()"></div>
+      <div class="search"><i class="ti ti-search"></i><input id="busca" placeholder="Buscar CNJ, BO, autor, vítima, envolvido, natureza, ano, prazo…" oninput="renderInqueritos()"></div>
       <span id="count-inq" style="font-size:12px;color:#aaa;margin-left:auto"></span>
     </div>
     <!-- Abas de filtro -->
@@ -510,7 +510,8 @@ let inqueritos = [];
 let oitivas = [];
 let filtroAtivo = ''; // 'relatado', 'cota', 'denuncia', ''
 let sortColuna = 'atualizado_em';
-let abaInqAtiva = ''; // '', 'andamento', 'relatado', 'cota', 'anp', 'arquivado', 'denuncia' // coluna atual de ordenação
+let abaInqAtiva = '';
+let envolvidos = []; // cache de envolvidos para busca // '', 'andamento', 'relatado', 'cota', 'anp', 'arquivado', 'denuncia' // coluna atual de ordenação
 let sortDir = 'desc'; // 'asc' ou 'desc'
 
 
@@ -698,9 +699,17 @@ function renderInqueritos() {
 
   // Busca textual
   const q = (document.getElementById('busca')?.value || '').toLowerCase().trim();
-  if (q) lista = lista.filter(r =>
-    [r.cnj, r.inquerito, r.autor, r.vitima, r.natureza, r.bo, r.ano, r.prazo].some(v => v && v.toLowerCase().includes(q))
-  );
+  if (q) {
+    // Busca nos campos do inquérito
+    const matchInq = r => [r.cnj, r.inquerito, r.autor, r.vitima, r.natureza, r.bo, r.ano, r.prazo, r.pendencias].some(v => v && v.toLowerCase().includes(q));
+    // Busca nos envolvidos cadastrados
+    lista = lista.filter(r => {
+      if (matchInq(r)) return true;
+      // Verifica envolvidos do painel
+      const envs = envolvidos.filter(e => e.inquerito_id === r.id);
+      return envs.some(e => [e.nome, e.cpf, e.rg, e.telefone].some(v => v && v.toLowerCase().includes(q)));
+    });
+  }
 
   // Ordenação
   if (sortColuna) {
@@ -815,6 +824,8 @@ async function salvarInq() {
       fecharModal('modal-inq');
       carregarInqueritos();
 verificarStatusGoogle();
+// Pré-carrega envolvidos para busca
+fetch('/api/envolvidos/todos').then(r=>r.json()).then(d=>{envolvidos=d;}).catch(()=>{});
       toast(id ? '✅ Procedimento atualizado!' : '✅ Procedimento criado!');
     } else {
       toast('❌ Erro ao salvar: ' + (d.error || r.status), true);
