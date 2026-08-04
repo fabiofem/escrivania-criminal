@@ -132,6 +132,8 @@ tr:hover td{background:#EBF4FD}
       <button class="aba-inq" data-aba="anp" onclick="setAbaInq(this,'anp')">ANP</button>
       <button class="aba-inq" data-aba="arquivado" onclick="setAbaInq(this,'arquivado')">Arquivados</button>
       <button class="aba-inq" data-aba="denuncia" onclick="setAbaInq(this,'denuncia')">Com Denúncia</button>
+      <button class="aba-inq" data-aba="ato_infracional" onclick="setAbaInq(this,'ato_infracional')">Atos Infracionais</button>
+      <button class="aba-inq" data-aba="termo" onclick="setAbaInq(this,'termo')">Termos Circunstanciados</button>
     </div>
     <!-- Filtros secundários -->
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
@@ -683,6 +685,8 @@ function renderInqueritos() {
   if (abaInqAtiva === 'anp') lista = lista.filter(r => r.anp==='Sim');
   if (abaInqAtiva === 'arquivado') lista = lista.filter(r => r.arquivamento==='Sim');
   if (abaInqAtiva === 'denuncia') lista = lista.filter(r => r.denuncia==='Sim');
+  if (abaInqAtiva === 'ato_infracional') lista = lista.filter(r => r.tipo_procedimento==='Ato Infracional');
+  if (abaInqAtiva === 'termo') lista = lista.filter(r => r.tipo_procedimento==='Termo Circunstanciado');
 
   // Filtros dos dropdowns
   const ano = document.getElementById('filtro-ano')?.value;
