@@ -371,6 +371,14 @@ app.delete('/api/inqueritos/:id', async (req, res) => {
 // ROTAS — ENVOLVIDOS
 // ════════════════════════════════════════════════════════
 
+// Buscar todos envolvidos (para cache de busca)
+app.get('/api/envolvidos/todos', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM envolvidos ORDER BY nome');
+    res.json(r.rows);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/envolvidos/:inqId', async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM envolvidos WHERE inquerito_id=$1 ORDER BY tipo_envolvimento, nome', [req.params.inqId]);
