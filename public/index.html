@@ -566,7 +566,7 @@ function setAbaInq(el, aba) {
 
 const ABAS_DEF = [
   {aba:'', label:'Todos', fn: r => true},
-  {aba:'andamento', label:'Em Andamento', fn: r => r.arquivamento!=='Sim'&&r.anp!=='Sim'&&r.denuncia!=='Sim'},
+  {aba:'andamento', label:'Em Andamento', fn: r => r.arquivamento!=='Sim'&&r.anp!=='Sim'&&r.denuncia!=='Sim'&&r.cota_mp!=='Sim'&&(r.tipo_procedimento==='Inquérito Policial'||!r.tipo_procedimento)&&r.tipo_procedimento!=='Ato Infracional'&&r.tipo_procedimento!=='Termo Circunstanciado'},
   {aba:'relatado', label:'Relatados', fn: r => r.relatado==='Sim'},
   {aba:'cota', label:'Cotas MP', fn: r => r.cota_mp==='Sim'},
   {aba:'anp', label:'ANP', fn: r => r.anp==='Sim'},
