@@ -566,9 +566,9 @@ function setAbaInq(el, aba) {
 
 const ABAS_DEF = [
   {aba:'', label:'Todos', fn: r => true},
-  {aba:'andamento', label:'Em Andamento', fn: r => r.arquivamento!=='Sim'&&r.anp!=='Sim'&&r.denuncia!=='Sim'&&r.cota_mp!=='Sim'&&(r.tipo_procedimento==='Inquérito Policial'||!r.tipo_procedimento)&&r.tipo_procedimento!=='Ato Infracional'&&r.tipo_procedimento!=='Termo Circunstanciado'},
+  {aba:'andamento', label:'Em Andamento', fn: r => r.arquivamento!=='Sim'&&r.anp!=='Sim'&&r.denuncia!=='Sim'&&r.cota_mp!=='Sim'&&(r.tipo_procedimento==='Inquérito Policial'||r.tipo_inquerito==='Auto de Prisão Em Flagrante'||(!r.tipo_procedimento&&!r.tipo_inquerito))},
   {aba:'relatado', label:'Relatados', fn: r => r.relatado==='Sim'},
-  {aba:'cota', label:'Cotas MP', fn: r => r.cota_mp==='Sim'},
+  {aba:'cota', label:'Cotas MP', fn: r => r.cota_mp==='Sim'&&(r.tipo_procedimento==='Inquérito Policial'||r.tipo_inquerito==='Auto de Prisão Em Flagrante'||(!r.tipo_procedimento&&!r.tipo_inquerito))},
   {aba:'anp', label:'ANP', fn: r => r.anp==='Sim'},
   {aba:'arquivado', label:'Arquivados', fn: r => r.arquivamento==='Sim'},
   {aba:'denuncia', label:'Com Denúncia', fn: r => r.denuncia==='Sim'},
@@ -689,6 +689,7 @@ function renderInqueritos() {
   let lista = inqueritos;
   if (filtroAtivo === 'relatado') lista = lista.filter(r => r.relatado && r.relatado.toLowerCase().includes('sim'));
   if (filtroAtivo === 'cota') lista = lista.filter(r => r.cota_mp && r.cota_mp.toLowerCase().includes('sim'));
+  if (abaInqAtiva === 'cota') lista = lista.filter(r => r.cota_mp==='Sim'&&(r.tipo_procedimento==='Inquérito Policial'||r.tipo_inquerito==='Auto de Prisão Em Flagrante'||(!r.tipo_procedimento&&!r.tipo_inquerito)));
   if (filtroAtivo === 'denuncia') lista = lista.filter(r => r.denuncia && r.denuncia.toLowerCase().includes('sim'));
   // Filtro por aba
   if (abaInqAtiva === 'andamento') lista = lista.filter(r => r.arquivamento!=='Sim' && r.anp!=='Sim' && r.denuncia!=='Sim');
