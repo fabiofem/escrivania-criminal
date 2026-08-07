@@ -163,6 +163,20 @@ async function initDB() {
     );
   `);
 
+  // Tabela de cotas do MP por inquérito
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cotas (
+      id SERIAL PRIMARY KEY,
+      inquerito_id INTEGER REFERENCES inqueritos(id) ON DELETE CASCADE,
+      data_recebimento DATE,
+      descricao TEXT,
+      acoes TEXT,
+      status TEXT DEFAULT 'Pendente',
+      criado_em TIMESTAMP DEFAULT NOW(),
+      atualizado_em TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
   // Tabela de envolvidos por inquérito
   await pool.query(`
     CREATE TABLE IF NOT EXISTS envolvidos (
@@ -365,6 +379,48 @@ app.delete('/api/inqueritos/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ════════════════════════════════════════════════════════
+// ROTAS — COTAS
+// ════════════════════════════════════════════════════════
+
+app.get('/api/cotas/:inqId', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM cotas WHERE inquerito_id=$1 ORDER BY data_recebimento DESC, criado_em DESC', [req.params.inqId]);
+    res.json(r.rows);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/cotas', async (req, res) => {
+  try {
+    const d = req.body;
+    const r = await pool.query(`
+      INSERT INTO cotas (inquerito_id, data_recebimento, descricao, acoes, status)
+      VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [d.inquerito_id, d.data_recebimento||null, str(d.descricao), str(d.acoes), str(d.status||'Pendente')]
+    );
+    res.json(r.rows[0]);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/cotas/:id', async (req, res) => {
+  try {
+    const d = req.body;
+    const r = await pool.query(`
+      UPDATE cotas SET data_recebimento=$1, descricao=$2, acoes=$3, status=$4, atualizado_em=NOW()
+      WHERE id=$5 RETURNING *`,
+      [d.data_recebimento||null, str(d.descricao), str(d.acoes), str(d.status||'Pendente'), req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/cotas/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM cotas WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 // ════════════════════════════════════════════════════════
