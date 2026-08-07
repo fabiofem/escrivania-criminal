@@ -220,6 +220,60 @@ tr:hover td{background:#EBF4FD}
 </div>
 
 <!-- MODAL OITIVA -->
+<!-- PAINEL COTAS DO MP -->
+<div id="painel-cotas" style="display:none;position:fixed;top:0;right:0;width:520px;height:100vh;background:#fff;box-shadow:-4px 0 30px rgba(0,0,0,0.15);z-index:200;overflow-y:auto">
+  <div style="padding:1.2rem 1.4rem;border-bottom:1px solid rgba(0,0,0,.08);background:#854F0B;color:#fff;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:.05em">Cotas do MP</div>
+      <div style="font-size:14px;font-weight:700" id="painel-cotas-titulo">—</div>
+    </div>
+    <button onclick="fecharCotas()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div style="padding:1rem">
+    <button class="btn primary" style="width:100%;margin-bottom:1rem;justify-content:center;background:#854F0B;border-color:#854F0B" onclick="abrirNovaCota()">
+      <i class="ti ti-plus"></i>Nova Cota
+    </button>
+    <div id="lista-cotas-painel"></div>
+  </div>
+</div>
+<div id="overlay-cotas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199" onclick="fecharCotas()"></div>
+
+<!-- MODAL COTA -->
+<div class="overlay" id="modal-cota" style="display:none" onclick="if(event.target===this)fecharModal('modal-cota')">
+  <div class="modal" style="max-width:580px">
+    <h2 id="modal-cota-title"><i class="ti ti-file-description" style="color:#854F0B"></i>Nova Cota do MP</h2>
+    <input type="hidden" id="cota-id">
+    <input type="hidden" id="cota-inq-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg">
+        <label>Data de Recebimento</label>
+        <input type="date" id="cota-data">
+      </div>
+      <div class="fg">
+        <label>Status</label>
+        <select id="cota-status">
+          <option>Pendente</option>
+          <option>Em andamento</option>
+          <option>Cumprida</option>
+          <option>Parcialmente cumprida</option>
+        </select>
+      </div>
+      <div class="fg full" style="grid-column:1/-1">
+        <label>Descrição da Cota (o que o MP solicitou)</label>
+        <textarea id="cota-descricao" placeholder="Descreva o que o MP solicitou nesta cota…" style="min-height:100px"></textarea>
+      </div>
+      <div class="fg full" style="grid-column:1/-1">
+        <label>Ações Realizadas</label>
+        <textarea id="cota-acoes" placeholder="Descreva as ações realizadas para cumprimento da cota…" style="min-height:80px"></textarea>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="fecharModal('modal-cota')">Cancelar</button>
+      <button class="btn primary" style="background:#854F0B;border-color:#854F0B" onclick="salvarCota()"><i class="ti ti-check"></i>Salvar Cota</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL INTIMAÇÃO v2.7 -->
 <div class="overlay" id="modal-oit" style="display:none" onclick="if(event.target===this)fecharModal('modal-oit')">
   <div class="modal" style="max-width:700px">
@@ -2057,6 +2111,119 @@ async function removerEnvolvido(id) {
   try {
     const r = await fetch(`/api/envolvidos/${id}`, { method:'DELETE' });
     if (r.ok) { carregarEnvolvidos(); toast('✅ Removido.'); }
+    else toast('❌ Erro ao remover.', true);
+  } catch(e) { toast('❌ Erro: ' + e.message, true); }
+}
+
+// ════════════════════════════════════════════════════════
+// COTAS DO MP
+// ════════════════════════════════════════════════════════
+let cotasInqId = null;
+let cotasCNJ = '';
+let cotasInq = '';
+
+async function abrirCotas(inqId, cnj, inq) {
+  cotasInqId = inqId;
+  cotasCNJ = cnj;
+  cotasInq = inq;
+  document.getElementById('painel-cotas-titulo').textContent = `${inq} — ${cnj}`;
+  document.getElementById('painel-cotas').style.display = 'block';
+  document.getElementById('overlay-cotas').style.display = 'block';
+  await carregarCotas();
+}
+
+function fecharCotas() {
+  document.getElementById('painel-cotas').style.display = 'none';
+  document.getElementById('overlay-cotas').style.display = 'none';
+}
+
+async function carregarCotas() {
+  try {
+    const r = await fetch(`/api/cotas/${cotasInqId}`);
+    const lista = await r.json();
+    renderCotas(lista);
+  } catch(e) { toast('❌ Erro ao carregar cotas: ' + e.message, true); }
+}
+
+function renderCotas(lista) {
+  const div = document.getElementById('lista-cotas-painel');
+  if (!lista.length) {
+    div.innerHTML = '<div style="text-align:center;padding:2rem;color:#aaa"><i class="ti ti-file-off" style="font-size:36px;display:block;margin-bottom:8px;opacity:.4"></i>Nenhuma cota registrada</div>';
+    return;
+  }
+  const statusCor = {'Pendente':'#A32D2D','Em andamento':'#854F0B','Cumprida':'#3B6D11','Parcialmente cumprida':'#185FA5'};
+  div.innerHTML = lista.map(c => {
+    const data = c.data_recebimento ? new Date(c.data_recebimento+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    const cor = statusCor[c.status] || '#666';
+    return `<div style="background:#f9f9f7;border:1px solid rgba(0,0,0,.08);border-left:4px solid ${cor};border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="background:${cor}20;color:${cor};font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">${c.status}</span>
+          <span style="font-size:12px;color:#666">Recebida em: <strong>${data}</strong></span>
+        </div>
+        <div style="display:flex;gap:5px">
+          <button class="ibtn" onclick='editarCota(${JSON.stringify(c).replace(/'/g,"&#39;")})' title="Editar"><i class="ti ti-edit"></i></button>
+          <button class="ibtn del" onclick="removerCota(${c.id})" title="Remover"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      ${c.descricao ? `<div style="font-size:12px;margin-bottom:6px"><strong style="color:#854F0B">Cota:</strong> ${c.descricao}</div>` : ''}
+      ${c.acoes ? `<div style="font-size:12px;color:#3B6D11"><strong>Ações:</strong> ${c.acoes}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function abrirNovaCota() {
+  document.getElementById('modal-cota-title').innerHTML = '<i class="ti ti-file-description" style="color:#854F0B"></i>Nova Cota do MP';
+  document.getElementById('cota-id').value = '';
+  document.getElementById('cota-inq-id').value = cotasInqId;
+  document.getElementById('cota-data').value = '';
+  document.getElementById('cota-status').value = 'Pendente';
+  document.getElementById('cota-descricao').value = '';
+  document.getElementById('cota-acoes').value = '';
+  document.getElementById('modal-cota').style.display = 'flex';
+}
+
+function editarCota(c) {
+  document.getElementById('modal-cota-title').innerHTML = '<i class="ti ti-edit" style="color:#854F0B"></i>Editar Cota';
+  document.getElementById('cota-id').value = c.id;
+  document.getElementById('cota-inq-id').value = c.inquerito_id;
+  document.getElementById('cota-data').value = (c.data_recebimento||'').split('T')[0];
+  document.getElementById('cota-status').value = c.status||'Pendente';
+  document.getElementById('cota-descricao').value = c.descricao||'';
+  document.getElementById('cota-acoes').value = c.acoes||'';
+  document.getElementById('modal-cota').style.display = 'flex';
+}
+
+async function salvarCota() {
+  const id = document.getElementById('cota-id').value;
+  const body = {
+    inquerito_id: document.getElementById('cota-inq-id').value,
+    data_recebimento: document.getElementById('cota-data').value || null,
+    descricao: document.getElementById('cota-descricao').value.trim(),
+    acoes: document.getElementById('cota-acoes').value.trim(),
+    status: document.getElementById('cota-status').value,
+  };
+  if (!body.descricao) { toast('⚠️ Informe a descrição da cota.', false, true); return; }
+  const url = id ? `/api/cotas/${id}` : '/api/cotas';
+  const method = id ? 'PUT' : 'POST';
+  try {
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (r.ok) {
+      fecharModal('modal-cota');
+      carregarCotas();
+      toast('✅ Cota salva!');
+    } else {
+      toast('❌ Erro: ' + (d.error||r.status), true);
+    }
+  } catch(e) { toast('❌ Erro de conexão: ' + e.message, true); }
+}
+
+async function removerCota(id) {
+  if (!confirm('Remover esta cota?')) return;
+  try {
+    const r = await fetch(`/api/cotas/${id}`, { method:'DELETE' });
+    if (r.ok) { carregarCotas(); toast('✅ Cota removida.'); }
     else toast('❌ Erro ao remover.', true);
   } catch(e) { toast('❌ Erro: ' + e.message, true); }
 }
