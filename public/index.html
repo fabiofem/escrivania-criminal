@@ -541,6 +541,42 @@ function fmtData(d) {
 }
 
 // ── Stats ──────────────────────────────────────────────
+function renderStats() {
+  const container = document.getElementById('stats-abas');
+  if (!container || !inqueritos.length) return;
+
+  const isIPouFlagrante = r => r.tipo_procedimento==='Inquérito Policial'||r.tipo_inquerito==='Auto de Prisão Em Flagrante'||(!r.tipo_procedimento&&!r.tipo_inquerito);
+
+  const defs = [
+    {aba:'', label:'Todos', color:'#185FA5', fn: r => true},
+    {aba:'andamento', label:'Em Andamento', color:'#3B6D11', fn: r => r.arquivamento!=='Sim'&&r.anp!=='Sim'&&r.denuncia!=='Sim'&&r.cota_mp!=='Sim'&&r.relatado!=='Sim'&&isIPouFlagrante(r)},
+    {aba:'relatado', label:'Relatados', color:'#0F6E56', fn: r => r.relatado==='Sim'},
+    {aba:'cota', label:'Cotas MP', color:'#854F0B', fn: r => r.cota_mp==='Sim'&&r.arquivamento!=='Sim'&&r.anp!=='Sim'&&r.denuncia!=='Sim'&&isIPouFlagrante(r)},
+    {aba:'anp', label:'ANP', color:'#534AB7', fn: r => r.anp==='Sim'},
+    {aba:'arquivado', label:'Arquivados', color:'#888', fn: r => r.arquivamento==='Sim'},
+    {aba:'denuncia', label:'Com Denúncia', color:'#185FA5', fn: r => r.denuncia==='Sim'},
+    {aba:'ato_infracional', label:'Atos Infracionais', color:'#A32D2D', fn: r => r.tipo_procedimento==='Ato Infracional'},
+    {aba:'termo', label:'Termos Circ.', color:'#5F5E5A', fn: r => r.tipo_procedimento==='Termo Circunstanciado'},
+  ];
+
+  container.innerHTML = defs.map(d => {
+    const count = inqueritos.filter(d.fn).length;
+    const isActive = abaInqAtiva === d.aba;
+    return `<div onclick="setAbaInqById('${d.aba}')" style="background:#fff;border-radius:12px;border:${isActive?'2px solid '+d.color:'0.5px solid rgba(0,0,0,0.1)'};padding:.9rem 1rem;cursor:pointer;transition:all .15s" title="Filtrar por ${d.label}">
+      <div style="font-size:10.5px;color:#888;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;font-weight:700">${d.label}</div>
+      <div style="font-size:26px;font-weight:700;color:${d.color}">${count}</div>
+    </div>`;
+  }).join('');
+}
+
+function setAbaInqById(aba) {
+  if (tabAtual !== 'inq') setTab('inq');
+  abaInqAtiva = aba;
+  renderInqueritos();
+  // Scroll to table
+  document.querySelector('.table-wrap')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
 async function carregarStats() {
   try {
     const r = await fetch('/api/stats');
@@ -682,6 +718,7 @@ async function carregarInqueritos() {
 function renderInqueritos() {
   renderThead();
   renderAbas();
+  renderStats();
   popularFiltros();
   const tb = document.getElementById('tbody-inq');
 
